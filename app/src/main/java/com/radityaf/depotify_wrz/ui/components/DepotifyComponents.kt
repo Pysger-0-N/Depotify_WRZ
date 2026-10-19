@@ -1,0 +1,150 @@
+package com.radityaf.depotify_wrz.ui.components
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
+import java.util.Locale
+
+/** Label kecil hijau huruf kapital, contoh: "OVERVIEW", "PERFORMA". */
+@Composable
+fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text.uppercase(),
+        modifier = modifier,
+        color = DepotifyColors.GreenDark,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 1.5.sp
+    )
+}
+
+/** Kartu putih dengan sudut membulat dan border tipis, seperti kartu di web. */
+@Composable
+fun DepotifyCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = DepotifyColors.Surface,
+        border = BorderStroke(1.dp, DepotifyColors.Border),
+        shadowElevation = 1.dp
+    ) {
+        Column(Modifier.padding(16.dp), content = content)
+    }
+}
+
+/** Kartu berisi label hijau + judul + garis pemisah + isi. */
+@Composable
+fun SectionCard(
+    label: String,
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    DepotifyCard(modifier) {
+        SectionLabel(label)
+        Spacer(Modifier.height(2.dp))
+        Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = DepotifyColors.Navy)
+        Spacer(Modifier.height(10.dp))
+        HorizontalDivider(color = DepotifyColors.Border)
+        Spacer(Modifier.height(12.dp))
+        content()
+    }
+}
+
+/** Kartu angka ringkasan (Transaksi hari ini, Pendapatan, dst). */
+@Composable
+fun StatCard(
+    label: String,
+    value: String,
+    caption: String,
+    badge: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = DepotifyColors.Navy,
+    badgeBackground: Color = DepotifyColors.GreenSoft,
+    badgeColor: Color = DepotifyColors.GreenDark
+) {
+    DepotifyCard(modifier) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(
+                label.uppercase(),
+                modifier = Modifier.weight(1f),
+                color = DepotifyColors.TextSecondary,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+            Box(
+                Modifier.size(26.dp).clip(RoundedCornerShape(8.dp)).background(badgeBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(badge, color = badgeColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Text(value, color = valueColor, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+        Spacer(Modifier.height(2.dp))
+        Text(caption, color = DepotifyColors.TextMuted, fontSize = 11.sp)
+    }
+}
+
+/** Kotak garis putus-putus untuk kondisi data kosong. */
+@Composable
+fun EmptyState(message: String, modifier: Modifier = Modifier) {
+    val dashColor = DepotifyColors.Border
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .drawBehind {
+                drawRoundRect(
+                    color = dashColor,
+                    cornerRadius = CornerRadius(12.dp.toPx()),
+                    style = Stroke(
+                        width = 1.5.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))
+                    )
+                )
+            }
+            .padding(vertical = 22.dp, horizontal = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(message, color = DepotifyColors.TextMuted, fontSize = 12.sp, textAlign = TextAlign.Center)
+    }
+}
+
+// ---------- helper format angka ----------
+
+/** 1500000 -> "Rp 1.500.000" */
+fun formatRupiah(value: Long): String =
+    "Rp " + String.format(Locale("id", "ID"), "%,d", value)
+
+/** Versi singkat untuk label chart: 1500000 -> "1,5jt", 25000 -> "25rb" */
+fun compactRupiah(value: Long): String = when {
+    value >= 1_000_000 -> String.format(Locale("id", "ID"), "%.1fjt", value / 1_000_000.0)
+    value >= 1_000 -> "${value / 1_000}rb"
+    else -> value.toString()
+}

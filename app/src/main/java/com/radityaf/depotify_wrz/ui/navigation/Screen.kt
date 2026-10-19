@@ -1,0 +1,28 @@
+package com.radityaf.depotify_wrz.ui.navigation
+
+sealed class Screen(val route: String) {
+    object Login : Screen("login")
+    object Beranda : Screen("beranda")
+    object Produk : Screen("produk")
+    object ProductDetail : Screen("product_detail/{productId}")
+    object ProductForm : Screen("product_form?productId={productId}")
+    object PurchaseOrder : Screen("purchase_order")
+    object PoDetail : Screen("po_detail/{poId}")
+    object PoForm : Screen("po_form?poId={poId}")
+    object GoodsReceiptForm : Screen("goods_receipt_form/{poId}")
+    object GoodsReceiptList : Screen("goods_receipt_list")
+    object GoodsReceiptDetail : Screen("goods_receipt_detail/{receiptId}")
+    object CategoryList : Screen("category_list")
+    object VendorList : Screen("vendor_list")
+    object VendorDetail : Screen("vendor_detail/{vendorId}")
+    object VendorForm : Screen("vendor_form?vendorId={vendorId}")
+    object StockHistory : Screen("stock_history")
+    object AddStockMovement : Screen("add_stock_movement")
+    object NotificationList : Screen("notification_list")
+    object More : Screen("more")
+    object Profile : Screen("profile")
+    object VendorMain : Screen("vendor_main")
+    object VendorPoList : Screen("vendor_po_list")
+    object VendorPoDetail : Screen("vendor_po_detail/{poId}")
+    object Unsupported : Screen("unsupported")
+}
