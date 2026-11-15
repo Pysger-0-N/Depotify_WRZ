@@ -136,9 +136,7 @@ fun PoDetailScreen(
                                 .height(52.dp)
                                 .clayInset(cornerRadius = 26.dp, backgroundColor = DepotifyColors.GreenSoft)
                                 .clickable {
-                                    viewModel.directReceiveGoods(po.id) {
-                                        onReceiveClick(po.id)
-                                    }
+                                    onReceiveClick(po.id)
                                 },
                             contentAlignment = Alignment.Center
                         ) {

@@ -14,7 +14,16 @@ class PurchaseOrderStore @Inject constructor() {
     val poList: StateFlow<List<PurchaseOrder>> = _poList.asStateFlow()
 
     fun setPos(list: List<PurchaseOrder>) {
-        _poList.value = list
+        val currentMap = _poList.value.associateBy { it.id }
+        val merged = list.map { serverPo ->
+            val localPo = currentMap[serverPo.id]
+            if (localPo != null && localPo.status == "DITERIMA" && serverPo.status != "DITERIMA") {
+                serverPo.copy(status = "DITERIMA")
+            } else {
+                serverPo
+            }
+        }
+        _poList.value = merged
     }
 
     fun addPo(po: PurchaseOrder) {

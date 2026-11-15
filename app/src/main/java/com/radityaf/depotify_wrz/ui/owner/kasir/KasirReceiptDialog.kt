@@ -1,12 +1,12 @@
 package com.radityaf.depotify_wrz.ui.owner.kasir
 
-import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,6 +20,9 @@ import com.radityaf.depotify_wrz.data.model.SaleTransaction
 import com.radityaf.depotify_wrz.ui.components.*
 import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
 import com.radityaf.depotify_wrz.utils.FormatUtils.toRupiah
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun KasirReceiptDialog(
@@ -29,6 +32,7 @@ fun KasirReceiptDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    var exportedFilePath by remember { mutableStateOf<String?>(null) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -140,49 +144,67 @@ fun KasirReceiptDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .clayButton(cornerRadius = 14.dp)
+                            .clickable {
+                                val path = exportReceiptExcel(context, transaction, cashReceived, changeAmount)
+                                if (path.isNotBlank()) {
+                                    exportedFilePath = path
+                                }
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                                .clayInset(cornerRadius = 12.dp, backgroundColor = DepotifyColors.SurfaceInset)
-                                .clickable {
-                                    shareReceiptText(context, transaction, cashReceived, changeAmount)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Bagikan Struk", color = DepotifyColors.Navy, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                                .clayInset(cornerRadius = 12.dp, backgroundColor = DepotifyColors.SurfaceInset)
-                                .clickable {
-                                    exportReceiptExcel(context, transaction, cashReceived, changeAmount)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Ekspor Excel / CSV", color = DepotifyColors.GreenDark, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                        }
+                        Text("Ekspor Struk (Excel)", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
                     }
 
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp)
-                            .clayButton(cornerRadius = 14.dp)
+                            .clayInset(cornerRadius = 14.dp, backgroundColor = DepotifyColors.SurfaceInset)
                             .clickable { onDismiss() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Selesai", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                        Text("Selesai", color = DepotifyColors.Navy, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }
+        }
+
+        // Export Success Dialog
+        if (exportedFilePath != null) {
+            AlertDialog(
+                onDismissRequest = { exportedFilePath = null },
+                title = { Text("Ekspor Berhasil", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("File struk penjualan berhasil dibuat dan disimpan ke perangkat.", fontSize = 13.sp, color = DepotifyColors.TextSecondary)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clayInset(cornerRadius = 12.dp, backgroundColor = DepotifyColors.SurfaceInset)
+                                .padding(12.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Direktori: Folder Downloads", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
+                                Text("Nama File: ${exportedFilePath!!.substringAfterLast("/")}", fontSize = 12.sp, color = DepotifyColors.GreenDark, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { exportedFilePath = null },
+                        colors = ButtonDefaults.buttonColors(containerColor = DepotifyColors.Navy)
+                    ) {
+                        Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                containerColor = DepotifyColors.Surface
+            )
         }
     }
 }
@@ -203,64 +225,35 @@ private fun ReceiptRow(label: String, value: String, isHighlight: Boolean = fals
     }
 }
 
-private fun shareReceiptText(
-    context: android.content.Context,
-    transaction: SaleTransaction,
-    cashReceived: Double,
-    changeAmount: Double
-) {
-    val builder = StringBuilder()
-    builder.appendLine("*DEPOTIFY — STRUK PENJUALAN*")
-    builder.appendLine("Invoice: ${transaction.displayInvoice}")
-    builder.appendLine("Pelanggan: ${transaction.displayCustomerName}")
-    builder.appendLine("--------------------------------")
-    transaction.items.forEach { item ->
-        builder.appendLine("${item.product_name} (${item.qty}x) : ${item.subtotal.toRupiah()}")
-    }
-    builder.appendLine("--------------------------------")
-    builder.appendLine("TOTAL: ${transaction.total_amount.toRupiah()}")
-    if ((transaction.payment_method.equals("cash", ignoreCase = true) || transaction.payment_method.equals("tunai", ignoreCase = true)) && cashReceived > 0) {
-        builder.appendLine("TUNAI: ${cashReceived.toRupiah()}")
-        builder.appendLine("KEMBALI: ${changeAmount.toRupiah()}")
-    }
-    builder.appendLine("--------------------------------")
-    builder.appendLine("Terima kasih telah berbelanja di Depotify!")
-
-    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, builder.toString())
-    }
-    context.startActivity(Intent.createChooser(shareIntent, "Bagikan Struk Penjualan"))
-}
-
 private fun exportReceiptExcel(
     context: android.content.Context,
     transaction: SaleTransaction,
     cashReceived: Double,
     changeAmount: Double
-) {
-    val builder = StringBuilder()
-    builder.appendLine("DEPOTIFY — LAPORAN STRUK TRANSAKSI (CSV/EXCEL FORMAT)")
-    builder.appendLine("Invoice,${transaction.displayInvoice}")
-    builder.appendLine("Pelanggan,${transaction.displayCustomerName}")
-    builder.appendLine("Tanggal,${transaction.created_at ?: "-"}")
-    builder.appendLine("Metode Pembayaran,${transaction.payment_method ?: "Cash"}")
-    builder.appendLine("---")
-    builder.appendLine("Nama Produk,Jumlah,Subtotal")
-    transaction.items.forEach { item ->
-        builder.appendLine("${item.product_name},${item.qty},${item.subtotal}")
-    }
-    builder.appendLine("---")
-    builder.appendLine("Total Pembayaran,,${transaction.total_amount}")
-    if (cashReceived > 0) {
-        builder.appendLine("Uang Diterima,,$cashReceived")
-        builder.appendLine("Kembalian,,$changeAmount")
+): String {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val fileName = "Struk_${transaction.displayInvoice}_$timeStamp.csv"
+
+    val csvContent = buildString {
+        appendLine("DEPOTIFY — STRUK PENJUALAN")
+        appendLine("Invoice,${transaction.displayInvoice}")
+        appendLine("Pelanggan,${transaction.displayCustomerName}")
+        appendLine("Tanggal,${transaction.created_at ?: "-"}")
+        appendLine("Metode Pembayaran,${transaction.payment_method ?: "Cash"}")
+        appendLine()
+        appendLine("RINCIAN PRODUK")
+        appendLine("Nama Produk,Jumlah,Subtotal")
+        transaction.items.forEach { item ->
+            val safeName = item.product_name.replace(",", " ")
+            appendLine("$safeName,${item.qty},${item.subtotal}")
+        }
+        appendLine()
+        appendLine("TOTAL PEMBAYARAN,${transaction.total_amount}")
+        if (cashReceived > 0) {
+            appendLine("Uang Diterima,$cashReceived")
+            appendLine("Kembalian,$changeAmount")
+        }
     }
 
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/csv"
-        putExtra(Intent.EXTRA_TEXT, builder.toString())
-        putExtra(Intent.EXTRA_SUBJECT, "Struk_${transaction.displayInvoice}.csv")
-    }
-    context.startActivity(Intent.createChooser(intent, "Ekspor Struk ke Excel / CSV"))
+    return com.radityaf.depotify_wrz.utils.ExportUtils.saveCsvToDownloads(context, fileName, csvContent)
 }

@@ -27,7 +27,7 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
-data class PoItem(val productName: String, val qty: Int, val price: Long)
+data class PoItem(val productId: Int = 0, val productName: String, val qty: Int, val price: Long)
 
 data class PurchaseOrder(
     val id: Int,
@@ -54,6 +54,7 @@ fun com.radityaf.depotify_wrz.data.model.PurchaseOrder.toUiModel(): PurchaseOrde
         paymentMethod = this.payment_method ?: "cash",
         items = this.items.map { item ->
             PoItem(
+                productId = item.product_id,
                 productName = item.product?.name ?: item.product_name ?: "Produk #${item.product_id}",
                 qty = item.qty_ordered,
                 price = item.displayUnitPrice.toLong()
@@ -263,73 +264,7 @@ class PurchaseOrderViewModel @Inject constructor(
     }
 
     fun directReceiveGoods(id: Int, note: String? = null, onComplete: () -> Unit = {}) {
-        val targetPo = _uiState.value.items.find { it.id == id } ?: return
-        if (targetPo.status == "DITERIMA") {
-            onComplete()
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            try {
-                if (targetPo.status != "DIKIRIM" && targetPo.status != "DITERIMA") {
-                    purchaseOrderRepository.updatePoStatus(id, "shipped", "Bypass Admin - Diteruskan ke pengiriman")
-                }
-
-                purchaseOrderStore.updateStatus(id, "DITERIMA")
-                purchaseOrderRepository.updatePoStatus(id, "received", note ?: "Bypass Admin - Konfirmasi Diterima Langsung")
-
-                val allProducts = productDao.getAllProductsSync()
-                targetPo.items.forEach { item ->
-                    val product = allProducts.find { it.name.equals(item.productName, ignoreCase = true) }
-                    if (product != null) {
-                        if (syncRepository.isConnected()) {
-                            stockRepository.stockMasuk(
-                                productId = product.id,
-                                stockType = "fill",
-                                qty = item.qty,
-                                description = "Penerimaan PO #${targetPo.id} (Bypass Admin)"
-                            )
-                        } else {
-                            val newStock = product.stockContent + item.qty
-                            productDao.updateProduct(product.copy(stockContent = newStock))
-                            stockMovementDao.insertStockMovement(
-                                StockMovementEntity(
-                                    productId = product.id,
-                                    productName = product.name,
-                                    stockType = "fill",
-                                    movementType = "in",
-                                    qty = item.qty,
-                                    endingBalance = newStock,
-                                    referenceType = "purchase_order",
-                                    referenceId = targetPo.id,
-                                    description = "Penerimaan PO #${targetPo.id} (Bypass Admin)"
-                                )
-                            )
-                        }
-                    }
-                }
-
-                if (syncRepository.isConnected()) {
-                    syncRepository.syncRoomToServer()
-                }
-
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        successMessage = "Barang PO #${targetPo.id} berhasil diterima (Bypass Admin) & stok produk telah diperbarui!"
-                    )
-                }
-                onComplete()
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = e.message ?: "Gagal mengonfirmasi penerimaan barang PO"
-                    )
-                }
-            }
-        }
+        receiveGoods(id, note ?: "Bypass Admin - Konfirmasi Diterima Langsung", onComplete)
     }
 
     fun receiveGoods(id: Int, note: String? = null, onComplete: () -> Unit = {}) {
@@ -342,45 +277,57 @@ class PurchaseOrderViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
+                // 1. Update local store status immediately to DITERIMA
                 purchaseOrderStore.updateStatus(id, "DITERIMA")
-                purchaseOrderRepository.updatePoStatus(id, "received", note)
 
-                // Update product stock and record stock movement
+                // 2. Update product stock and record stock movement locally (Room) first for robust offline-first behavior
                 val allProducts = productDao.getAllProductsSync()
                 targetPo.items.forEach { item ->
-                    val product = allProducts.find { it.name.equals(item.productName, ignoreCase = true) }
+                    val product = allProducts.find { it.id == item.productId }
+                        ?: allProducts.find { it.name.equals(item.productName, ignoreCase = true) }
                     if (product != null) {
-                        // Send stock in to Server API if online
-                        if (syncRepository.isConnected()) {
-                            stockRepository.stockMasuk(
+                        val newStock = product.stockContent + item.qty
+                        productDao.updateProduct(product.copy(stockContent = newStock))
+                        stockMovementDao.insertStockMovement(
+                            StockMovementEntity(
                                 productId = product.id,
+                                productName = product.name,
                                 stockType = "fill",
+                                movementType = "in",
                                 qty = item.qty,
+                                endingBalance = newStock,
+                                referenceType = "purchase_order",
+                                referenceId = targetPo.id,
                                 description = "Penerimaan PO #${targetPo.id}${if (!note.isNullOrBlank()) ": $note" else ""}"
                             )
-                        } else {
-                            val newStock = product.stockContent + item.qty
-                            productDao.updateProduct(product.copy(stockContent = newStock))
-                            stockMovementDao.insertStockMovement(
-                                StockMovementEntity(
-                                    productId = product.id,
-                                    productName = product.name,
-                                    stockType = "fill",
-                                    movementType = "in",
-                                    qty = item.qty,
-                                    endingBalance = newStock,
-                                    referenceType = "purchase_order",
-                                    referenceId = targetPo.id,
-                                    description = "Penerimaan PO #${targetPo.id}${if (!note.isNullOrBlank()) ": $note" else ""}"
-                                )
-                            )
-                        }
+                        )
                     }
                 }
 
-                // If online, auto-sync to server
-                if (syncRepository.isConnected()) {
-                    syncRepository.syncRoomToServer()
+                // 3. Try updating server status and syncing if online, but catch errors so local success persists
+                try {
+                    if (targetPo.status != "DIKIRIM" && targetPo.status != "DITERIMA") {
+                        purchaseOrderRepository.updatePoStatus(id, "shipped", "Bypass Admin - Diteruskan ke pengiriman")
+                    }
+                    purchaseOrderRepository.updatePoStatus(id, "received", note)
+
+                    if (syncRepository.isConnected()) {
+                        targetPo.items.forEach { item ->
+                            val product = allProducts.find { it.id == item.productId }
+                                ?: allProducts.find { it.name.equals(item.productName, ignoreCase = true) }
+                            if (product != null) {
+                                stockRepository.stockMasuk(
+                                    productId = product.id,
+                                    stockType = "fill",
+                                    qty = item.qty,
+                                    description = "Penerimaan PO #${targetPo.id}${if (!note.isNullOrBlank()) ": $note" else ""}"
+                                )
+                            }
+                        }
+                        syncRepository.syncRoomToServer()
+                    }
+                } catch (_: Exception) {
+                    // Ignore network/server errors so local store & local stock updates remain intact
                 }
 
                 _uiState.update {

@@ -1,6 +1,5 @@
 package com.radityaf.depotify_wrz.ui.owner.report
 
-import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,6 +41,8 @@ fun FinancialReportScreen(
     val totalExpense by viewModel.totalExpense.collectAsState()
     val estimatedProfit by viewModel.estimatedProfit.collectAsState()
 
+    var exportedFilePath by remember { mutableStateOf<String?>(null) }
+
     Scaffold(
         modifier = modifier,
         containerColor = Color.Transparent,
@@ -57,180 +58,217 @@ fun FinancialReportScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            PageHeader("Keuangan", "Laporan Operasional", "Rekapitulasi omset penjualan, pengeluaran pembelian, dan laba kotor.")
-
-            // Export Excel/CSV Button
-            Box(
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .clayButton(cornerRadius = 14.dp)
-                    .clickable {
-                        exportFinancialReport(context, totalOmset, totalExpense, estimatedProfit, sales, purchaseOrders)
-                    },
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                    Text("Ekspor Laporan", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
-                }
-            }
+                PageHeader("Keuangan", "Laporan Operasional", "Rekapitulasi omset penjualan, pengeluaran pembelian, dan laba kotor.")
 
-            // Financial Summary KPI Cards
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+                // Export Excel/CSV Button
                 Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
-                        .padding(12.dp)
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .clayButton(cornerRadius = 14.dp)
+                        .clickable {
+                            val path = exportFinancialReport(context, totalOmset, totalExpense, estimatedProfit, sales, purchaseOrders)
+                            if (path.isNotBlank()) {
+                                exportedFilePath = path
+                            }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Penjualan", fontSize = 11.sp, color = DepotifyColors.TextSecondary)
-                        Text(totalOmset.toRupiah(), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = DepotifyColors.GreenDark)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Text("Ekspor Laporan (Excel)", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
-                        .padding(12.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Pengeluaran PO", fontSize = 11.sp, color = DepotifyColors.TextSecondary)
-                        Text(totalExpense.toRupiah(), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = DepotifyColors.Danger)
-                    }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
-                    .padding(16.dp)
-            ) {
+                // Financial Summary KPI Cards
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Estimasi Laba Kotor", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DepotifyColors.TextSecondary)
-                        Text(estimatedProfit.toRupiah(), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = if (estimatedProfit >= 0) DepotifyColors.GreenDark else DepotifyColors.Danger)
-                    }
                     Box(
                         modifier = Modifier
-                            .clayInset(cornerRadius = 10.dp, backgroundColor = DepotifyColors.SurfaceInset)
-                            .padding(8.dp)
+                            .weight(1f)
+                            .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
+                            .padding(12.dp)
                     ) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = DepotifyColors.Warning, modifier = Modifier.size(24.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Penjualan", fontSize = 11.sp, color = DepotifyColors.TextSecondary)
+                            Text(totalOmset.toRupiah(), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = DepotifyColors.GreenDark)
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
+                            .padding(12.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Pengeluaran PO", fontSize = 11.sp, color = DepotifyColors.TextSecondary)
+                            Text(totalExpense.toRupiah(), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = DepotifyColors.Danger)
+                        }
                     }
                 }
-            }
 
-            // Tab Row
-            TabRow(
-                selectedTabIndex = selectedTab.ordinal,
-                containerColor = DepotifyColors.Surface,
-                contentColor = DepotifyColors.Navy
-            ) {
-                Tab(
-                    selected = selectedTab == FinancialTab.SUMMARY,
-                    onClick = { viewModel.setTab(FinancialTab.SUMMARY) },
-                    text = { Text("Ringkasan", fontWeight = FontWeight.Bold) }
-                )
-                Tab(
-                    selected = selectedTab == FinancialTab.SALES,
-                    onClick = { viewModel.setTab(FinancialTab.SALES) },
-                    text = { Text("Penjualan", fontWeight = FontWeight.Bold) }
-                )
-                Tab(
-                    selected = selectedTab == FinancialTab.PURCHASE_ORDERS,
-                    onClick = { viewModel.setTab(FinancialTab.PURCHASE_ORDERS) },
-                    text = { Text("Purchase Order", fontWeight = FontWeight.Bold) }
-                )
-            }
-
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = DepotifyColors.Navy)
-                }
-            } else if (error != null) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(error ?: "Terjadi kesalahan", color = DepotifyColors.Danger, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                when (selectedTab) {
-                    FinancialTab.SUMMARY -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Estimasi Laba Kotor", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DepotifyColors.TextSecondary)
+                            Text(estimatedProfit.toRupiah(), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = if (estimatedProfit >= 0) DepotifyColors.GreenDark else DepotifyColors.Danger)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clayInset(cornerRadius = 10.dp, backgroundColor = DepotifyColors.SurfaceInset)
+                                .padding(8.dp)
                         ) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
-                                        .padding(16.dp)
+                            Icon(Icons.Default.Star, contentDescription = null, tint = DepotifyColors.Warning, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                }
+
+                // Tab Row
+                TabRow(
+                    selectedTabIndex = selectedTab.ordinal,
+                    containerColor = DepotifyColors.Surface,
+                    contentColor = DepotifyColors.Navy
+                ) {
+                    Tab(
+                        selected = selectedTab == FinancialTab.SUMMARY,
+                        onClick = { viewModel.setTab(FinancialTab.SUMMARY) },
+                        text = { Text("Ringkasan", fontWeight = FontWeight.Bold) }
+                    )
+                    Tab(
+                        selected = selectedTab == FinancialTab.SALES,
+                        onClick = { viewModel.setTab(FinancialTab.SALES) },
+                        text = { Text("Penjualan", fontWeight = FontWeight.Bold) }
+                    )
+                    Tab(
+                        selected = selectedTab == FinancialTab.PURCHASE_ORDERS,
+                        onClick = { viewModel.setTab(FinancialTab.PURCHASE_ORDERS) },
+                        text = { Text("Purchase Order", fontWeight = FontWeight.Bold) }
+                    )
+                }
+
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = DepotifyColors.Navy)
+                    }
+                } else if (error != null) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(error ?: "Terjadi kesalahan", color = DepotifyColors.Danger, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    when (selectedTab) {
+                        FinancialTab.SUMMARY -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
+                                            .padding(16.dp)
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            Text("Ringkasan Operasional", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy, fontSize = 15.sp)
+                                            HorizontalDivider(color = DepotifyColors.Border)
+                                            SummaryRow("Total Penjualan", "${sales.size} Transaksi")
+                                            SummaryRow("Total Purchase Order", "${purchaseOrders.size} PO")
+                                            SummaryRow("PO Selesai", "${purchaseOrders.count { it.status == "received" || it.status == "completed" }} PO")
+                                            SummaryRow("Status Sistem", "Online & Sinkron")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        FinancialTab.SALES -> {
+                            if (sales.isEmpty()) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text("Belum ada data penjualan", color = DepotifyColors.TextMuted, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        Text("Ringkasan Operasional", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy, fontSize = 15.sp)
-                                        HorizontalDivider(color = DepotifyColors.Border)
-                                        SummaryRow("Total Penjualan", "${sales.size} Transaksi")
-                                        SummaryRow("Total Purchase Order", "${purchaseOrders.size} PO")
-                                        SummaryRow("PO Selesai", "${purchaseOrders.count { it.status == "received" || it.status == "completed" }} PO")
-                                        SummaryRow("Status Sistem", "Online & Sinkron")
+                                    items(sales) { sale ->
+                                        SaleReportCard(sale)
+                                    }
+                                }
+                            }
+                        }
+                        FinancialTab.PURCHASE_ORDERS -> {
+                            if (purchaseOrders.isEmpty()) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text("Belum ada data Purchase Order", color = DepotifyColors.TextMuted, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    items(purchaseOrders) { po ->
+                                        PoReportCard(po)
                                     }
                                 }
                             }
                         }
                     }
-                    FinancialTab.SALES -> {
-                        if (sales.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Belum ada data penjualan", color = DepotifyColors.TextMuted, fontWeight = FontWeight.Bold)
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                items(sales) { sale ->
-                                    SaleReportCard(sale)
-                                }
-                            }
-                        }
-                    }
-                    FinancialTab.PURCHASE_ORDERS -> {
-                        if (purchaseOrders.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Belum ada data Purchase Order", color = DepotifyColors.TextMuted, fontWeight = FontWeight.Bold)
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                items(purchaseOrders) { po ->
-                                    PoReportCard(po)
-                                }
-                            }
-                        }
-                    }
                 }
+            }
+
+            // Export Success Dialog
+            if (exportedFilePath != null) {
+                AlertDialog(
+                    onDismissRequest = { exportedFilePath = null },
+                    title = { Text("Ekspor Berhasil", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy) },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("File laporan keuangan berhasil dibuat dan disimpan ke perangkat.", fontSize = 13.sp, color = DepotifyColors.TextSecondary)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clayInset(cornerRadius = 12.dp, backgroundColor = DepotifyColors.SurfaceInset)
+                                    .padding(12.dp)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("Direktori: Folder Downloads", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
+                                    Text("Nama File: ${exportedFilePath!!.substringAfterLast("/")}", fontSize = 12.sp, color = DepotifyColors.GreenDark, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = { exportedFilePath = null },
+                            colors = ButtonDefaults.buttonColors(containerColor = DepotifyColors.Navy)
+                        ) {
+                            Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    containerColor = DepotifyColors.Surface
+                )
             }
         }
     }
@@ -243,28 +281,35 @@ private fun exportFinancialReport(
     profit: Double,
     sales: List<SaleTransaction>,
     pos: List<PurchaseOrder>
-) {
-    val builder = StringBuilder()
-    builder.appendLine("DEPOTIFY — LAPORAN KEUANGAN")
-    builder.appendLine("Total Omset: ${totalOmset.toRupiah()}")
-    builder.appendLine("Total Pengeluaran PO: ${totalExpense.toRupiah()}")
-    builder.appendLine("Estimasi Laba Kotor: ${profit.toRupiah()}")
-    builder.appendLine("========================================")
-    builder.appendLine("DAFTAR PENJUALAN:")
-    sales.forEach { s ->
-        builder.appendLine("- Invoice: ${s.displayInvoice} | Pelanggan: ${s.displayCustomerName} | Total: ${s.total_amount.toRupiah()} | Status: ${s.status}")
-    }
-    builder.appendLine("========================================")
-    builder.appendLine("DAFTAR PURCHASE ORDER:")
-    pos.forEach { p ->
-        builder.appendLine("- PO #${p.id} | Vendor: ${p.vendor?.name ?: "Supplier"} | Total: ${p.displayTotal.toRupiah()} | Status: ${p.displayStatus}")
+): String {
+    val timeStamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
+    val fileName = "Laporan_Keuangan_$timeStamp.csv"
+
+    val csvContent = buildString {
+        appendLine("DEPOTIFY — LAPORAN KEUANGAN")
+        appendLine("Waktu Ekspor,${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
+        appendLine()
+        appendLine("RINGKASAN KEUANGAN")
+        appendLine("Total Omset,${totalOmset}")
+        appendLine("Total Pengeluaran PO,${totalExpense}")
+        appendLine("Estimasi Laba Kotor,$profit")
+        appendLine()
+        appendLine("DAFTAR PENJUALAN")
+        appendLine("Invoice,Pelanggan,Total,Status,Tanggal")
+        sales.forEach { s ->
+            val safeCustomer = s.displayCustomerName.replace(",", " ")
+            appendLine("${s.displayInvoice},$safeCustomer,${s.total_amount},${s.status},${s.created_at ?: "-"}")
+        }
+        appendLine()
+        appendLine("DAFTAR PURCHASE ORDER")
+        appendLine("No PO,Vendor,Total,Status,Tanggal")
+        pos.forEach { p ->
+            val safeVendor = (p.vendor?.name ?: "Supplier").replace(",", " ")
+            appendLine("${p.displayPoNumber},$safeVendor,${p.displayTotal},${p.displayStatus},${p.po_date ?: "-"}")
+        }
     }
 
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, builder.toString())
-    }
-    context.startActivity(Intent.createChooser(intent, "Ekspor / Cetak Laporan Keuangan"))
+    return com.radityaf.depotify_wrz.utils.ExportUtils.saveCsvToDownloads(context, fileName, csvContent)
 }
 
 @Composable
