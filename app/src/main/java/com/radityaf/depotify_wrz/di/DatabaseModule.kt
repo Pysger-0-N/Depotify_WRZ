@@ -46,4 +46,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun providePendingDeleteDao(database: AppDatabase): PendingDeleteDao = database.pendingDeleteDao()
+
+    @Provides
+    @Singleton
+    fun provideUserDao(database: AppDatabase): UserDao = database.userDao()
 }

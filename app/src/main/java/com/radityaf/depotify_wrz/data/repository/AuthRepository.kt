@@ -1,11 +1,14 @@
 package com.radityaf.depotify_wrz.data.repository
 
 import com.radityaf.depotify_wrz.data.local.TokenManager
+import com.radityaf.depotify_wrz.data.local.dao.UserDao
+import com.radityaf.depotify_wrz.data.local.entity.toEntity
 import com.radityaf.depotify_wrz.data.model.LoginRequest
 import com.radityaf.depotify_wrz.data.model.LoginResponse
 import com.radityaf.depotify_wrz.data.model.User
 import com.radityaf.depotify_wrz.data.remote.ApiService
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -16,6 +19,7 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val apiService: ApiService,
     private val tokenManager: TokenManager,
+    private val userDao: UserDao,
     private val json: Json
 ) {
     val tokenFlow: Flow<String?> = tokenManager.tokenFlow
@@ -32,6 +36,7 @@ class AuthRepository @Inject constructor(
                         if (u.vendor_id == null && vId != null) u.copy(vendor_id = vId) else u
                     }
                     tokenManager.saveToken(loginData.token)
+                    userDao.insertUser(userWithVendorId.toEntity(loginData.token))
                     Result.success(LoginResponse(token = loginData.token, user = userWithVendorId))
                 } else {
                     Result.failure(Exception(body.message.ifBlank { "Email atau kata sandi salah." }))
@@ -42,7 +47,17 @@ class AuthRepository @Inject constructor(
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Result.failure(Exception("Tidak dapat terhubung ke server backend database. Pastikan server running (${e.message})"))
+            // Fallback Login Offline dari Room
+            val localUser = userDao.getUserByEmail(email)
+            val currentToken = tokenManager.tokenFlow.firstOrNull() ?: localUser?.token
+            if (localUser != null) {
+                if (!currentToken.isNullOrEmpty()) {
+                    tokenManager.saveToken(currentToken)
+                }
+                Result.success(LoginResponse(token = currentToken ?: "offline_token", user = localUser.toDomainUser()))
+            } else {
+                Result.failure(Exception("Server tidak dapat dijangkau dan akun belum pernah tersimpan di perangkat lokal (${e.message})"))
+            }
         }
     }
 
@@ -55,6 +70,8 @@ class AuthRepository @Inject constructor(
                     val rawUser = body.data
                     val vId = rawUser.effectiveVendorId
                     val userWithVendorId = if (rawUser.vendor_id == null && vId != null) rawUser.copy(vendor_id = vId) else rawUser
+                    val currentToken = tokenManager.tokenFlow.firstOrNull()
+                    userDao.insertUser(userWithVendorId.toEntity(currentToken))
                     Result.success(userWithVendorId)
                 } else {
                     Result.failure(Exception(body.message.ifBlank { "Sesi telah berakhir" }))
@@ -63,7 +80,13 @@ class AuthRepository @Inject constructor(
                 Result.failure(Exception("Sesi telah berakhir atau tidak valid (${response.code()})"))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            // Fallback Offline dari Room jika terputus dari jaringan
+            val cachedUser = userDao.getLoggedInUser()
+            if (cachedUser != null) {
+                Result.success(cachedUser.toDomainUser())
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
@@ -71,6 +94,7 @@ class AuthRepository @Inject constructor(
         try {
             apiService.logout()
         } catch (_: Exception) {}
+        userDao.clearUser()
         tokenManager.clearToken()
     }
 

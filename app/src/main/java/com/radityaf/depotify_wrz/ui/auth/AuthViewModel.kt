@@ -45,21 +45,20 @@ class AuthViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            authRepository.tokenFlow.collect { token ->
-                if (!token.isNullOrEmpty()) {
-                    _authState.value = AuthState.Loading
-                    val result = authRepository.getMe()
-                    result.fold(
-                        onSuccess = { user ->
-                            validateUserRole(user)
-                        },
-                        onFailure = {
-                            _authState.value = AuthState.Idle
-                        }
-                    )
-                } else {
-                    _authState.value = AuthState.Idle
-                }
+            val token = authRepository.tokenFlow.firstOrNull()
+            if (!token.isNullOrEmpty()) {
+                _authState.value = AuthState.Loading
+                val result = authRepository.getMe()
+                result.fold(
+                    onSuccess = { user ->
+                        validateUserRole(user)
+                    },
+                    onFailure = {
+                        _authState.value = AuthState.Idle
+                    }
+                )
+            } else {
+                _authState.value = AuthState.Idle
             }
         }
     }
