@@ -25,7 +25,7 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/api/\"")
+            buildConfigField("String", "BASE_URL", "\"http://192.168.100.179:8000/api/\"")
         }
         release {
             buildConfigField("String", "BASE_URL", "\"https://GANTI-DENGAN-DOMAIN-ASLI/api/\"")

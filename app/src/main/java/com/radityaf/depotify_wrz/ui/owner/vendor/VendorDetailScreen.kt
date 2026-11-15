@@ -6,8 +6,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.radityaf.depotify_wrz.ui.components.*
 import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
 
@@ -19,7 +21,7 @@ fun VendorDetailScreen(
 ) {
     Scaffold(
         modifier = modifier,
-        containerColor = DepotifyColors.Background,
+        containerColor = Color.Transparent,
         topBar = { DepotifyTopBar("Detail Vendor", onBack) }
     ) { padding ->
         Column(
@@ -34,17 +36,17 @@ fun VendorDetailScreen(
 
             SectionCard(label = "Profil", title = "Informasi Pemasok") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Nama Vendor: PT Sumber Gas Sejahtera", fontWeight = FontWeight.Bold)
-                    Text("Contact Person: Bpk. Budi")
-                    Text("No. Telepon: 081234567890")
-                    Text("Email: info@sumbergas.com")
-                    Text("Alamat: Jl. Raya Industri No. 45, Kota")
+                    Text("Nama Vendor: PT Sumber Gas Sejahtera", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy, fontSize = 14.sp)
+                    Text("Contact Person: Bpk. Budi", color = DepotifyColors.TextSecondary, fontSize = 13.sp)
+                    Text("No. Telepon: 081234567890", color = DepotifyColors.TextSecondary, fontSize = 13.sp)
+                    Text("Email: info@sumbergas.com", color = DepotifyColors.TextSecondary, fontSize = 13.sp)
+                    Text("Alamat: Jl. Raya Industri No. 45, Kota", color = DepotifyColors.TextSecondary, fontSize = 13.sp)
                 }
             }
 
             SectionCard(label = "Pasokan", title = "Kategori Produk") {
-                Text("• LPG 3 Kg & 12 Kg", color = DepotifyColors.Navy)
-                Text("• Tabung Gas Kosong", color = DepotifyColors.Navy)
+                Text("• LPG 3 Kg & 12 Kg", color = DepotifyColors.Navy, fontWeight = FontWeight.Bold)
+                Text("• Tabung Gas Kosong", color = DepotifyColors.Navy, fontWeight = FontWeight.Bold)
             }
         }
     }

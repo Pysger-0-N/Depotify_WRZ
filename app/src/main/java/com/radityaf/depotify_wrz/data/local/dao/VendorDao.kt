@@ -6,11 +6,14 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface VendorDao {
-    @Query("SELECT * FROM vendor ORDER BY id DESC")
+    @Query("SELECT * FROM vendor WHERE isDeleted = 0 ORDER BY id DESC")
     fun getAllVendors(): Flow<List<VendorEntity>>
 
-    @Query("SELECT * FROM vendor")
+    @Query("SELECT * FROM vendor WHERE isDeleted = 0")
     suspend fun getAllVendorsSync(): List<VendorEntity>
+
+    @Query("SELECT * FROM vendor WHERE isSynced = 0 AND isDeleted = 0")
+    suspend fun getUnsyncedVendors(): List<VendorEntity>
 
     @Query("SELECT * FROM vendor WHERE id = :id")
     suspend fun getVendorById(id: Int): VendorEntity?

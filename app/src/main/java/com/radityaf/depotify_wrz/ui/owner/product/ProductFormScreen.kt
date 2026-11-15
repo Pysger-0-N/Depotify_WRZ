@@ -1,5 +1,6 @@
 package com.radityaf.depotify_wrz.ui.owner.product
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -7,11 +8,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.radityaf.depotify_wrz.ui.components.*
+import com.radityaf.depotify_wrz.ui.owner.sales.ErrorBanner
 import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +41,10 @@ fun ProductFormScreen(
     var purchasePrice by remember { mutableStateOf("0") }
     var minStock by remember { mutableStateOf("5") }
     var isActive by remember { mutableStateOf(true) }
+
+    val sellingPriceVal = sellingPrice.toDoubleOrNull() ?: 0.0
+    val purchasePriceVal = purchasePrice.toDoubleOrNull() ?: 0.0
+    val isPriceLossWarning = sellingPriceVal > 0 && purchasePriceVal > 0 && sellingPriceVal < purchasePriceVal
 
     LaunchedEffect(productId) {
         if (productId != null) {
@@ -72,8 +79,8 @@ fun ProductFormScreen(
 
     Scaffold(
         modifier = modifier,
-        containerColor = DepotifyColors.Background,
-        topBar = { DepotifyTopBar(if (productId == null) "Tambah Produk (Room)" else "Ubah Produk (Room)", onBack) }
+        containerColor = Color.Transparent,
+        topBar = { DepotifyTopBar(if (productId == null) "Tambah Produk" else "Ubah Produk", onBack) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -83,33 +90,49 @@ fun ProductFormScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            PageHeader("Manajemen Produk", if (productId == null) "Form Produk Baru" else "Edit Data Produk", "Disimpan secara offline di Room Database.")
+            PageHeader("Manajemen Produk", if (productId == null) "Form Produk Baru" else "Edit Data Produk", "Data tersimpan di basis data lokal dan server.")
 
             if (!state.errorMessage.isNullOrBlank()) {
-                Card(colors = CardDefaults.cardColors(containerColor = DepotifyColors.Danger.copy(alpha = 0.1f))) {
-                    Text(text = state.errorMessage!!, color = DepotifyColors.Danger, modifier = Modifier.padding(12.dp))
-                }
+                ErrorBanner(message = state.errorMessage!!) { viewModel.clearError() }
+            }
+
+            if (isPriceLossWarning) {
+                ErrorBanner(
+                    message = "Peringatan: Harga jual (Rp ${sellingPriceVal.toLong()}) lebih rendah dari harga modal (Rp ${purchasePriceVal.toLong()}).",
+                    onDismiss = {}
+                )
             }
 
             SectionCard(label = "Detail Utama", title = "Informasi Dasar") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Category Dropdown
+                    // Category Dropdown Clay
                     ExposedDropdownMenuBox(
                         expanded = categoryExpanded,
                         onExpandedChange = { categoryExpanded = it }
                     ) {
-                        OutlinedTextField(
-                            value = selectedCategoryName.ifBlank { "Pilih Kategori" },
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Kategori Produk") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = DepotifyColors.Green,
-                                unfocusedBorderColor = DepotifyColors.Border
+                        Box(
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                                .clayInset(cornerRadius = 16.dp, backgroundColor = DepotifyColors.SurfaceInset)
+                        ) {
+                            TextField(
+                                value = selectedCategoryName.ifBlank { "Pilih Kategori" },
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Kategori Produk", color = DepotifyColors.Navy, fontWeight = FontWeight.Bold) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    focusedTextColor = DepotifyColors.Navy,
+                                    unfocusedTextColor = DepotifyColors.Navy
+                                ),
+                                modifier = Modifier.fillMaxWidth()
                             )
-                        )
+                        }
                         ExposedDropdownMenu(
                             expanded = categoryExpanded,
                             onDismissRequest = { categoryExpanded = false }
@@ -137,16 +160,25 @@ fun ProductFormScreen(
                     DepotifyTextField("SKU / Kode", sku, { sku = it }, placeholder = "Contoh: LPG-03")
                     DepotifyTextField("Varian", variant, { variant = it }, placeholder = "Contoh: Regular / Refill")
                     
-                    Text("Unit / Satuan", fontWeight = FontWeight.Medium, color = DepotifyColors.Navy)
+                    Text("Unit / Satuan", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("canister" to "Kanister", "gallon" to "Galon", "pcs" to "Pcs", "other" to "Lainnya").forEach { (key, label) ->
-                            OutlinedButton(
-                                onClick = { unit = key },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (unit == key) DepotifyColors.GreenSoft else DepotifyColors.Surface,
-                                    contentColor = if (unit == key) DepotifyColors.GreenDark else DepotifyColors.Navy
+                            val selected = unit == key
+                            Box(
+                                modifier = Modifier
+                                    .then(
+                                        if (selected) Modifier.clayButton(cornerRadius = 12.dp)
+                                        else Modifier.clayInset(cornerRadius = 12.dp)
+                                    )
+                                    .clickable { unit = key }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    label,
+                                    color = if (selected) Color.White else DepotifyColors.Navy,
+                                    fontWeight = FontWeight.Bold
                                 )
-                            ) { Text(label) }
+                            }
                         }
                     }
                 }
@@ -159,7 +191,7 @@ fun ProductFormScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Menggunakan Tabung / Galon (Deposit)?", fontWeight = FontWeight.Medium, fontSize = MaterialTheme.typography.bodyMedium.fontSize)
+                        Text("Tabung / Galon (Deposit)?", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
                         Switch(
                             checked = usesContainer,
                             onCheckedChange = { usesContainer = it },
@@ -168,17 +200,17 @@ fun ProductFormScreen(
                     }
 
                     if (usesContainer) {
-                        DepotifyTextField("Harga Deposit", depositPrice, { depositPrice = it }, keyboardType = KeyboardType.Number)
+                        DepotifyTextField("Harga Deposit", depositPrice, { depositPrice = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
                     }
 
-                    DepotifyTextField("Harga Jual", sellingPrice, { sellingPrice = it }, keyboardType = KeyboardType.Number)
-                    DepotifyTextField("Harga Beli / Modal", purchasePrice, { purchasePrice = it }, keyboardType = KeyboardType.Number)
+                    DepotifyTextField("Harga Jual", sellingPrice, { sellingPrice = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
+                    DepotifyTextField("Harga Beli / Modal", purchasePrice, { purchasePrice = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
                 }
             }
 
             SectionCard(label = "Stok", title = "Batas Minimum Stok") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DepotifyTextField("Batas Stok Minimum", minStock, { minStock = it }, keyboardType = KeyboardType.Number)
+                    DepotifyTextField("Batas Stok Minimum", minStock, { minStock = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
                 }
             }
 
@@ -189,7 +221,7 @@ fun ProductFormScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Produk Aktif", fontWeight = FontWeight.Medium, fontSize = MaterialTheme.typography.bodyMedium.fontSize)
+                        Text("Produk Aktif", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
                         Switch(
                             checked = isActive,
                             onCheckedChange = { isActive = it },
@@ -200,7 +232,7 @@ fun ProductFormScreen(
             }
 
             DepotifyButton(
-                text = if (state.isLoading) "Menyimpan..." else "Simpan ke Room DB",
+                text = if (state.isLoading) "Menyimpan..." else "Simpan Produk",
                 onClick = {
                     viewModel.saveProduct(
                         productId = productId,
@@ -210,15 +242,15 @@ fun ProductFormScreen(
                         sku = sku,
                         variant = variant,
                         unit = unit,
-                        sellingPrice = sellingPrice.toDoubleOrNull() ?: 0.0,
+                        sellingPrice = sellingPriceVal,
                         depositPrice = if (usesContainer) depositPrice.toDoubleOrNull() else null,
-                        purchasePrice = purchasePrice.toDoubleOrNull() ?: 0.0,
+                        purchasePrice = purchasePriceVal,
                         minimumStock = minStock.toIntOrNull() ?: 5,
                         isActive = isActive,
                         onSuccess = onBack
                     )
                 },
-                enabled = !state.isLoading && name.isNotBlank() && selectedCategoryName.isNotBlank(),
+                enabled = !state.isLoading && name.isNotBlank() && selectedCategoryName.isNotBlank() && sellingPriceVal >= 0 && purchasePriceVal >= 0,
                 modifier = Modifier.fillMaxWidth()
             )
         }

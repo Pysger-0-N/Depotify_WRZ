@@ -1,17 +1,13 @@
 package com.radityaf.depotify_wrz.ui.owner.sales
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -19,10 +15,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.radityaf.depotify_wrz.data.model.SaleTransaction
 import com.radityaf.depotify_wrz.ui.components.*
+import com.radityaf.depotify_wrz.ui.owner.kasir.KasirReceiptDialog
 import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
 import com.radityaf.depotify_wrz.utils.FormatUtils.toRupiah
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SalesScreen(
     modifier: Modifier = Modifier,
@@ -34,78 +30,55 @@ fun SalesScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(0) }
-    val statuses = listOf(null, "pending", "confirmed", "selesai")
-    val tabTitles = listOf("Semua", "Pending", "Dikonfirmasi", "Selesai")
+    LaunchedEffect(Unit) {
+        viewModel.loadSales(null)
+    }
 
     Scaffold(
         modifier = modifier,
-        containerColor = DepotifyColors.Background,
-        topBar = {
-            TopAppBar(
-                title = { Text("Fitur Penjualan", color = Color.White, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DepotifyColors.Navy)
-            )
-        }
+        containerColor = Color.Transparent,
+        topBar = { DepotifyTopBar("Penjualan", onBack) }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        DepotifyRefreshBox(
+            isRefreshing = isLoading,
+            onRefresh = { viewModel.refresh(null) },
+            modifier = Modifier.padding(padding).fillMaxSize()
         ) {
-            PageHeader("Daftar Penjualan", "Konfirmasi & Selesaikan Transaksi", "Data customer dan produk dari website.")
-
-            ScrollableTabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = DepotifyColors.Surface,
-                contentColor = DepotifyColors.Green,
-                edgePadding = 0.dp
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                tabTitles.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = {
-                            selectedTab = index
-                            viewModel.loadSales(statuses[index])
-                        },
-                        text = { Text(title, fontWeight = FontWeight.SemiBold) }
-                    )
-                }
-            }
+                PageHeader("Penjualan", "Daftar Transaksi", "Data transaksi penjualan.")
 
-            if (!errorMessage.isNullOrEmpty()) {
-                ErrorBanner(message = errorMessage!!) { viewModel.clearMessages() }
-            }
-            if (!successMessage.isNullOrEmpty()) {
-                SuccessBanner(message = successMessage!!) { viewModel.clearMessages() }
-            }
+                if (!errorMessage.isNullOrEmpty()) {
+                    ErrorBanner(message = errorMessage!!) { viewModel.clearMessages() }
+                }
+                if (!successMessage.isNullOrEmpty()) {
+                    SuccessBanner(message = successMessage!!) { viewModel.clearMessages() }
+                }
 
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = DepotifyColors.Green)
-                }
-            } else if (sales.isEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text("Tidak ada data penjualan", color = DepotifyColors.TextMuted)
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(sales) { sale ->
-                        SaleCard(
-                            sale = sale,
-                            onConfirm = { viewModel.confirmSale(sale.id) },
-                            onComplete = { viewModel.completeSale(sale.id) }
-                        )
+                if (isLoading && sales.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = DepotifyColors.Green)
+                    }
+                } else if (sales.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                        EmptyState("Belum ada data penjualan.")
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(sales) { sale ->
+                            SaleCard(
+                                sale = sale,
+                                isLoading = isLoading,
+                                onConfirm = { viewModel.confirmSale(sale.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -116,42 +89,51 @@ fun SalesScreen(
 @Composable
 fun SaleCard(
     sale: SaleTransaction,
-    onConfirm: () -> Unit,
-    onComplete: () -> Unit
+    isLoading: Boolean,
+    onConfirm: () -> Unit
 ) {
+    var showReceipt by remember { mutableStateOf(false) }
+
+    if (showReceipt) {
+        KasirReceiptDialog(
+            transaction = sale,
+            onDismiss = { showReceipt = false }
+        )
+    }
+
     SectionCard(
-        label = "Invoice: ${sale.invoice_number}",
-        title = sale.customer_name
+        label = "Invoice ${sale.displayInvoice}",
+        title = sale.displayCustomerName
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("No. WhatsApp / HP:", color = DepotifyColors.TextMuted, fontSize = 12.sp)
-                Text(sale.customer_phone ?: "-", fontWeight = FontWeight.Medium, fontSize = 12.sp, color = Color.White)
+                Text("No. Telepon:", color = DepotifyColors.TextSecondary, fontSize = 12.sp)
+                Text(sale.displayCustomerPhone ?: "-", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = DepotifyColors.Navy)
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Alamat:", color = DepotifyColors.TextMuted, fontSize = 12.sp)
-                Text(sale.customer_address ?: "-", fontWeight = FontWeight.Medium, fontSize = 12.sp, color = Color.White)
+                Text("Alamat:", color = DepotifyColors.TextSecondary, fontSize = 12.sp)
+                Text(sale.displayCustomerAddress ?: "-", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = DepotifyColors.Navy)
             }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Status:", color = DepotifyColors.TextMuted, fontSize = 12.sp)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Status:", color = DepotifyColors.TextSecondary, fontSize = 12.sp)
                 BadgeStatus(status = sale.status)
             }
 
             HorizontalDivider(color = DepotifyColors.Border)
 
-            Text("Produk yang Dibeli:", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = DepotifyColors.Green)
+            Text("Produk:", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, color = DepotifyColors.GreenDark)
             sale.items.forEach { item ->
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("${item.product_name} (${item.qty}x)", fontSize = 12.sp, color = Color.White)
-                    Text(item.subtotal.toRupiah(), fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text("${item.product_name} (${item.qty}x)", fontSize = 12.sp, color = DepotifyColors.Navy)
+                    Text(item.subtotal.toRupiah(), fontSize = 12.sp, color = DepotifyColors.Navy, fontWeight = FontWeight.Bold)
                 }
             }
 
             HorizontalDivider(color = DepotifyColors.Border)
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Total Pembayaran:", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                Text(sale.total_amount.toRupiah(), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = DepotifyColors.Green)
+                Text("Total Pembayaran:", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = DepotifyColors.Navy)
+                Text(sale.total_amount.toRupiah(), fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = DepotifyColors.GreenDark)
             }
 
             Spacer(Modifier.height(4.dp))
@@ -161,22 +143,27 @@ fun SaleCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (sale.status == "pending") {
-                    Button(
-                        onClick = onConfirm,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = DepotifyColors.Green)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clayButton(cornerRadius = 14.dp, enabled = !isLoading)
+                            .clickable(enabled = !isLoading, onClick = onConfirm),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text("Konfirmasi", color = DepotifyColors.Navy, fontWeight = FontWeight.Bold)
+                        Text("Konfirmasi", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
                     }
                 }
-                if (sale.status != "selesai") {
-                    Button(
-                        onClick = onComplete,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = DepotifyColors.Navy)
-                    ) {
-                        Text("Selesai (Catat DB)", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .clayInset(cornerRadius = 14.dp, backgroundColor = DepotifyColors.SurfaceInset)
+                        .clickable { showReceipt = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Lihat Struk", color = DepotifyColors.Navy, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
                 }
             }
         }
@@ -187,56 +174,65 @@ fun SaleCard(
 fun BadgeStatus(status: String) {
     val (color, text) = when (status.lowercase()) {
         "pending" -> DepotifyColors.Warning to "Pending"
-        "confirmed" -> DepotifyColors.Green to "Dikonfirmasi"
+        "confirmed" -> DepotifyColors.GreenDark to "Dikonfirmasi"
         "selesai" -> DepotifyColors.Navy to "Selesai"
         else -> DepotifyColors.TextMuted to status
     }
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(color.copy(alpha = 0.2f))
-            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .clayInset(cornerRadius = 8.dp, backgroundColor = color.copy(alpha = 0.15f))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
-        Text(text, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(text.uppercase(), color = color, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
     }
 }
 
 @Composable
 fun ErrorBanner(message: String, onDismiss: () -> Unit) {
-    Surface(
-        color = DepotifyColors.Danger.copy(alpha = 0.2f),
-        shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clayInset(cornerRadius = 12.dp, backgroundColor = DepotifyColors.WarningSoft)
+            .padding(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(message, color = DepotifyColors.Danger, fontSize = 12.sp, modifier = Modifier.weight(1f))
-            IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.Close, contentDescription = null, tint = DepotifyColors.Danger)
-            }
+            Text(message, color = DepotifyColors.Danger, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text(
+                "✕",
+                color = DepotifyColors.Danger,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.clickable { onDismiss() }.padding(start = 8.dp)
+            )
         }
     }
 }
 
 @Composable
 fun SuccessBanner(message: String, onDismiss: () -> Unit) {
-    Surface(
-        color = DepotifyColors.Green.copy(alpha = 0.2f),
-        shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clayInset(cornerRadius = 12.dp, backgroundColor = DepotifyColors.GreenSoft)
+            .padding(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(message, color = DepotifyColors.Green, fontSize = 12.sp, modifier = Modifier.weight(1f))
-            IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.Close, contentDescription = null, tint = DepotifyColors.Green)
-            }
+            Text(message, color = DepotifyColors.GreenDark, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text(
+                "✕",
+                color = DepotifyColors.GreenDark,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.clickable { onDismiss() }.padding(start = 8.dp)
+            )
         }
     }
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.radityaf.depotify_wrz.data.local.dao.ProductDao
 import com.radityaf.depotify_wrz.data.local.entity.ProductEntity
+import com.radityaf.depotify_wrz.data.repository.SyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -21,17 +22,21 @@ data class ProductUiState(
 
 @HiltViewModel
 class ProductViewModel @Inject constructor(
-    private val productDao: ProductDao
+    private val productDao: ProductDao,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
+    private val _isLoading = MutableStateFlow(false)
 
     val uiState: StateFlow<ProductUiState> = combine(
         productDao.getAllProducts(),
-        _query
-    ) { products, query ->
+        _query,
+        _isLoading
+    ) { products, query, isLoading ->
         ProductUiState(
             allItems = products,
+            isLoading = isLoading,
             query = query
         )
     }.stateIn(
@@ -39,6 +44,14 @@ class ProductViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = ProductUiState()
     )
+
+    fun refresh() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            syncRepository.syncServerToRoom()
+            _isLoading.value = false
+        }
+    }
 
     fun onQueryChange(q: String) {
         _query.value = q

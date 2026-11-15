@@ -42,4 +42,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideStockMovementDao(database: AppDatabase): StockMovementDao = database.stockMovementDao()
+
+    @Provides
+    @Singleton
+    fun providePendingDeleteDao(database: AppDatabase): PendingDeleteDao = database.pendingDeleteDao()
 }

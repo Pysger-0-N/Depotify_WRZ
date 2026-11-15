@@ -15,7 +15,8 @@ class NotificationRepository @Inject constructor(
             if (response.isSuccessful && response.body() != null && response.body()!!.success) {
                 Result.success(response.body()!!.data)
             } else {
-                Result.failure(Exception("Gagal memuat notifikasi"))
+                val errStr = response.errorBody()?.string() ?: response.body()?.message ?: "Gagal memuat notifikasi dari server"
+                Result.failure(Exception(errStr))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -28,7 +29,8 @@ class NotificationRepository @Inject constructor(
             if (response.isSuccessful && response.body() != null && response.body()!!.success) {
                 Result.success(true)
             } else {
-                Result.failure(Exception("Gagal menandai notifikasi dibaca"))
+                val errStr = response.errorBody()?.string() ?: "Gagal menandai notifikasi dibaca"
+                Result.failure(Exception(errStr))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -41,7 +43,8 @@ class NotificationRepository @Inject constructor(
             if (response.isSuccessful && response.body() != null && response.body()!!.success) {
                 Result.success(true)
             } else {
-                Result.failure(Exception("Gagal menghapus notifikasi"))
+                val errStr = response.errorBody()?.string() ?: "Gagal menghapus notifikasi"
+                Result.failure(Exception(errStr))
             }
         } catch (e: Exception) {
             Result.failure(e)

@@ -8,13 +8,13 @@ interface ApiService {
 
     // Auth
     @POST("v1/auth/login")
-    suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+    suspend fun login(@Body request: LoginRequest): Response<LoginApiResponse>
 
     @GET("v1/auth/me")
-    suspend fun getMe(): Response<User>
+    suspend fun getMe(): Response<UserApiResponse>
 
     @POST("v1/auth/logout")
-    suspend fun logout(): Response<LogoutResponse>
+    suspend fun logout(): Response<SimpleApiResponse>
 
     // Products
     @GET("v1/products")
@@ -55,19 +55,19 @@ interface ApiService {
     suspend fun deleteCategory(@Path("id") id: Int): Response<SimpleApiResponse>
 
     // Vendors / Suppliers
-    @GET("v1/suppliers")
+    @GET("v1/vendors")
     suspend fun getVendors(@Query("page") page: Int? = null): Response<VendorListApiResponse>
 
-    @GET("v1/suppliers/{id}")
+    @GET("v1/vendors/{id}")
     suspend fun getVendorDetail(@Path("id") id: Int): Response<VendorApiResponse>
 
-    @POST("v1/suppliers")
+    @POST("v1/vendors")
     suspend fun createVendor(@Body request: CreateVendorRequest): Response<VendorApiResponse>
 
-    @PUT("v1/suppliers/{id}")
+    @PUT("v1/vendors/{id}")
     suspend fun updateVendor(@Path("id") id: Int, @Body request: CreateVendorRequest): Response<VendorApiResponse>
 
-    @DELETE("v1/suppliers/{id}")
+    @DELETE("v1/vendors/{id}")
     suspend fun deleteVendor(@Path("id") id: Int): Response<SimpleApiResponse>
 
     // Purchase Orders
@@ -86,8 +86,8 @@ interface ApiService {
     @PUT("v1/purchase-orders/{id}")
     suspend fun updatePurchaseOrder(@Path("id") id: Int, @Body request: CreatePoRequest): Response<PurchaseOrderApiResponse>
 
-    @PUT("v1/purchase-orders/{id}/status")
-    suspend fun updatePoStatus(@Path("id") id: Int, @Body request: PoStatusUpdateRequest): Response<PurchaseOrderApiResponse>
+    @PUT("v1/purchase-orders/{id}")
+    suspend fun updatePoStatus(@Path("id") id: Int, @Body request: PoStatusUpdateRequest): Response<okhttp3.ResponseBody>
 
     @DELETE("v1/purchase-orders/{id}")
     suspend fun deletePurchaseOrder(@Path("id") id: Int): Response<SimpleApiResponse>
@@ -141,6 +141,9 @@ interface ApiService {
         @Query("status") status: String? = null,
         @Query("page") page: Int? = null
     ): Response<SaleListApiResponse>
+
+    @POST("v1/sales")
+    suspend fun createSale(@Body request: CreateSaleRequest): Response<SaleApiResponse>
 
     @PUT("v1/sales/{id}/confirm")
     suspend fun confirmSale(@Path("id") id: Int): Response<SaleApiResponse>

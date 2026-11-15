@@ -6,6 +6,8 @@ import com.radityaf.depotify_wrz.data.local.dao.CategoryDao
 import com.radityaf.depotify_wrz.data.local.dao.ProductDao
 import com.radityaf.depotify_wrz.data.local.entity.CategoryEntity
 import com.radityaf.depotify_wrz.data.local.entity.ProductEntity
+import com.radityaf.depotify_wrz.data.model.CreateProductRequest
+import com.radityaf.depotify_wrz.data.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -22,7 +24,8 @@ data class ProductFormUiState(
 @HiltViewModel
 class ProductFormViewModel @Inject constructor(
     private val productDao: ProductDao,
-    private val categoryDao: CategoryDao
+    private val categoryDao: CategoryDao,
+    private val productRepository: ProductRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProductFormUiState())
@@ -47,6 +50,10 @@ class ProductFormViewModel @Inject constructor(
         }
     }
 
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
     fun saveProduct(
         productId: Int?,
         categoryId: Int,
@@ -65,10 +72,69 @@ class ProductFormViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                if (productId == null) {
-                    val entity = ProductEntity(
-                        name = name,
-                        sku = sku,
+                val req = CreateProductRequest(
+                    category_id = categoryId,
+                    name = name.trim(),
+                    sku = sku?.trim()?.ifBlank { null },
+                    variant = variant?.trim()?.ifBlank { null },
+                    unit = unit,
+                    selling_price = sellingPrice,
+                    deposit_price = depositPrice,
+                    purchase_price = purchasePrice,
+                    minimum_stock = minimumStock,
+                    is_active = isActive
+                )
+
+                if (productId == null || productId == 0) {
+                    val apiResult = productRepository.createProduct(req)
+                    if (apiResult.isSuccess) {
+                        val newProd = apiResult.getOrNull()
+                        val entity = ProductEntity(
+                            id = newProd?.id ?: 0,
+                            vendorId = newProd?.vendor_id,
+                            name = newProd?.name ?: name.trim(),
+                            sku = newProd?.sku ?: sku,
+                            categoryId = categoryId,
+                            categoryName = categoryName,
+                            variant = variant,
+                            unit = unit,
+                            sellingPrice = sellingPrice,
+                            depositPrice = depositPrice,
+                            purchasePrice = purchasePrice,
+                            minimumStock = minimumStock,
+                            isActive = isActive,
+                            stockContent = newProd?.stock_content ?: 0,
+                            emptyStock = newProd?.empty_stock ?: 0,
+                            isSynced = true
+                        )
+                        productDao.insertProduct(entity)
+                    } else {
+                        val entity = ProductEntity(
+                            id = 0,
+                            name = name.trim(),
+                            sku = sku?.trim()?.ifBlank { null },
+                            categoryId = categoryId,
+                            categoryName = categoryName,
+                            variant = variant,
+                            unit = unit,
+                            sellingPrice = sellingPrice,
+                            depositPrice = depositPrice,
+                            purchasePrice = purchasePrice,
+                            minimumStock = minimumStock,
+                            isActive = isActive,
+                            stockContent = 0,
+                            emptyStock = 0,
+                            isSynced = false
+                        )
+                        productDao.insertProduct(entity)
+                    }
+                } else {
+                    val existing = productDao.getProductById(productId)
+                    val apiResult = productRepository.updateProduct(productId, req)
+                    val isSynced = apiResult.isSuccess
+                    val updated = (existing ?: ProductEntity(id = productId, name = name)).copy(
+                        name = name.trim(),
+                        sku = sku?.trim()?.ifBlank { null },
                         categoryId = categoryId,
                         categoryName = categoryName,
                         variant = variant,
@@ -78,32 +144,14 @@ class ProductFormViewModel @Inject constructor(
                         purchasePrice = purchasePrice,
                         minimumStock = minimumStock,
                         isActive = isActive,
-                        stock = 0
+                        isSynced = isSynced
                     )
-                    productDao.insertProduct(entity)
-                } else {
-                    val existing = productDao.getProductById(productId)
-                    if (existing != null) {
-                        val updated = existing.copy(
-                            name = name,
-                            sku = sku,
-                            categoryId = categoryId,
-                            categoryName = categoryName,
-                            variant = variant,
-                            unit = unit,
-                            sellingPrice = sellingPrice,
-                            depositPrice = depositPrice,
-                            purchasePrice = purchasePrice,
-                            minimumStock = minimumStock,
-                            isActive = isActive
-                        )
-                        productDao.updateProduct(updated)
-                    }
+                    productDao.updateProduct(updated)
                 }
                 _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                 onSuccess()
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Gagal menyimpan produk ke Room DB") }
+                _uiState.update { it.copy(isLoading = false, errorMessage = e.message ?: "Gagal menyimpan data produk") }
             }
         }
     }

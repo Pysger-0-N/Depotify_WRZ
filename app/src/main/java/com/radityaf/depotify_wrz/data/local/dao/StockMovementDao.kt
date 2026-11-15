@@ -12,6 +12,9 @@ interface StockMovementDao {
     @Query("SELECT * FROM stock_movements")
     suspend fun getAllMovementsSync(): List<StockMovementEntity>
 
+    @Query("SELECT * FROM stock_movements WHERE isSynced = 0")
+    suspend fun getUnsyncedMovements(): List<StockMovementEntity>
+
     @Query("SELECT * FROM stock_movements WHERE productId = :productId ORDER BY id DESC")
     fun getStockMovementsByProduct(productId: Int): Flow<List<StockMovementEntity>>
 

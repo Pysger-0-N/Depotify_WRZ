@@ -6,11 +6,14 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CategoryDao {
-    @Query("SELECT * FROM categories ORDER BY id DESC")
+    @Query("SELECT * FROM categories WHERE isDeleted = 0 ORDER BY id DESC")
     fun getAllCategories(): Flow<List<CategoryEntity>>
 
-    @Query("SELECT * FROM categories")
+    @Query("SELECT * FROM categories WHERE isDeleted = 0")
     suspend fun getAllCategoriesSync(): List<CategoryEntity>
+
+    @Query("SELECT * FROM categories WHERE isSynced = 0 AND isDeleted = 0")
+    suspend fun getUnsyncedCategories(): List<CategoryEntity>
 
     @Query("SELECT * FROM categories WHERE id = :id")
     suspend fun getCategoryById(id: Int): CategoryEntity?

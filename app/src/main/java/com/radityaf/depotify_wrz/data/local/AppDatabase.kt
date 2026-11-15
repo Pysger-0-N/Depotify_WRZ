@@ -10,9 +10,10 @@ import com.radityaf.depotify_wrz.data.local.entity.*
         ProductEntity::class,
         CategoryEntity::class,
         VendorEntity::class,
-        StockMovementEntity::class
+        StockMovementEntity::class,
+        PendingDeleteEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -20,4 +21,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun vendorDao(): VendorDao
     abstract fun stockMovementDao(): StockMovementDao
+    abstract fun pendingDeleteDao(): PendingDeleteDao
 }

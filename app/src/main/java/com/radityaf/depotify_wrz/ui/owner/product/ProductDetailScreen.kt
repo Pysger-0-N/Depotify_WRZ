@@ -1,5 +1,6 @@
 package com.radityaf.depotify_wrz.ui.owner.product
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,15 +13,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.radityaf.depotify_wrz.ui.components.EmptyState
-import com.radityaf.depotify_wrz.ui.components.SectionCard
-import com.radityaf.depotify_wrz.ui.components.SectionLabel
-import com.radityaf.depotify_wrz.ui.components.StatCard
-import com.radityaf.depotify_wrz.ui.components.formatRupiah
+import com.radityaf.depotify_wrz.ui.components.*
 import com.radityaf.depotify_wrz.ui.product.ProductViewModel
 import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductDetailScreen(
     productId: Int,
@@ -34,20 +30,39 @@ fun ProductDetailScreen(
 
     Scaffold(
         modifier = modifier,
-        containerColor = DepotifyColors.Background,
+        containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text("Detail Produk", color = Color.White, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Kembali", color = DepotifyColors.Green) }
-                },
-                actions = {
-                    TextButton(onClick = { onEditClick(productId) }) {
-                        Text("Edit", color = DepotifyColors.Green, fontWeight = FontWeight.SemiBold)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 4.dp)
+                    .clayCard(cornerRadius = 24.dp, color = DepotifyColors.Navy)
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clayInset(cornerRadius = 12.dp, backgroundColor = Color(0x33FFFFFF))
+                            .clickable { onBack() }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text("← Kembali", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DepotifyColors.Navy)
-            )
+                    Text("Detail Produk", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                    Box(
+                        modifier = Modifier
+                            .clayButton(cornerRadius = 12.dp)
+                            .clickable { onEditClick(productId) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text("Edit", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     ) { padding ->
         if (product == null) {
@@ -64,23 +79,19 @@ fun ProductDetailScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column {
-                SectionLabel(product.category)
-                Text(
-                    product.name,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = DepotifyColors.Navy
-                )
-            }
+            PageHeader(
+                label = product.category,
+                title = product.name,
+                subtitle = "Informasi rinci stok & harga produk."
+            )
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatCard(
-                    label = "Stok",
+                    label = "Stok Tersedia",
                     value = product.stock.toString(),
-                    caption = if (lowStock) "stok menipis" else "tersedia",
+                    caption = if (lowStock) "stok menipis" else "aman",
                     badge = if (lowStock) "!" else "▢",
                     valueColor = if (lowStock) DepotifyColors.Warning else DepotifyColors.Navy,
                     badgeBackground = if (lowStock) DepotifyColors.WarningSoft else DepotifyColors.GreenSoft,
@@ -88,7 +99,7 @@ fun ProductDetailScreen(
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
-                    label = "Harga",
+                    label = "Harga Jual",
                     value = formatRupiah(product.price),
                     caption = "per satuan",
                     badge = "Rp",
@@ -96,10 +107,10 @@ fun ProductDetailScreen(
                 )
             }
 
-            SectionCard(label = "Detail", title = "Informasi Produk") {
+            SectionCard(label = "Detail", title = "Informasi Tambahan") {
                 InfoRow("Kategori", product.category)
                 HorizontalDivider(color = DepotifyColors.Border, modifier = Modifier.padding(vertical = 8.dp))
-                InfoRow("Barcode", product.barcode)
+                InfoRow("Barcode / SKU", product.barcode)
             }
         }
     }
@@ -113,6 +124,6 @@ private fun InfoRow(label: String, value: String) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, fontSize = 13.sp, color = DepotifyColors.TextSecondary)
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DepotifyColors.Navy)
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
     }
 }

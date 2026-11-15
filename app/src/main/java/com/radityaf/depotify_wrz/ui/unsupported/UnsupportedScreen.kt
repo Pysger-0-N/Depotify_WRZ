@@ -14,7 +14,7 @@ import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
 
 @Composable
 fun UnsupportedScreen(
-    message: String = "Akun ini belum didukung di aplikasi mobile",
+    message: String = "Akses akun ini belum didukung di aplikasi mobile",
     modifier: Modifier = Modifier,
     onLogout: () -> Unit = {}
 ) {
@@ -47,7 +47,7 @@ fun UnsupportedScreen(
                 )
                 Spacer(Modifier.height(8.dp))
                 DepotifyButton(
-                    text = "Keluar (Logout)",
+                    text = "Keluar Akun",
                     onClick = onLogout,
                     modifier = Modifier.fillMaxWidth()
                 )

@@ -1,21 +1,27 @@
 package com.radityaf.depotify_wrz.ui.auth
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.radityaf.depotify_wrz.ui.components.ClayBackground
+import com.radityaf.depotify_wrz.ui.components.SectionLabel
+import com.radityaf.depotify_wrz.ui.components.clayButton
+import com.radityaf.depotify_wrz.ui.components.clayCard
+import com.radityaf.depotify_wrz.ui.components.clayInset
+import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
 
 @Composable
 fun LoginScreen(
@@ -26,167 +32,204 @@ fun LoginScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     val authState by viewModel.authState.collectAsState()
 
-    val primaryDark = Color(0xFF1B2A4A)
-    val accentGreen = Color(0xFF34D399)
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    ClayBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            // Top Branding Section (Matching Website Left Panel)
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Branding Clay Card Header (White Surface)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(primaryDark)
-                    .padding(horizontal = 24.dp, vertical = 40.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    // Logo Badge Icon
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(accentGreen),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "D",
-                            fontSize = 28.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Depotify",
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Sistem pengelolaan depot gas LPG dan air mineral.",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = Color(0xFF94A3B8)
-                        )
-                    )
-                }
-            }
-
-            // Bottom Form Section (Matching Website Right Panel)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
+                    .clayCard(cornerRadius = 28.dp, color = DepotifyColors.Surface)
                     .padding(24.dp)
             ) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Selamat datang kembali",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Masuk untuk mengelola depot Anda.",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Email Field
-                Text(
-                    text = "Email",
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    placeholder = { Text("Masukkan email") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Password Field (with "Lihat" button exactly like website screenshot)
-                Text(
-                    text = "Kata sandi",
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    placeholder = { Text("Masukkan kata sandi") },
-                    singleLine = true,
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                Column(horizontalAlignment = Alignment.Start) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Inflated Mint Badge Logo Icon
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clayButton(cornerRadius = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
-                                text = if (passwordVisible) "Sembunyi" else "Lihat",
-                                color = MaterialTheme.colorScheme.primary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
+                                text = "D",
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
                             )
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Login Button (Mint Green matching website)
-                Button(
-                    onClick = { viewModel.login(email, password) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF34D399),
-                        contentColor = Color(0xFF064E3B)
-                    ),
-                    enabled = authState !is AuthState.Loading
-                ) {
-                    if (authState is AuthState.Loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color(0xFF064E3B)
-                        )
-                    } else {
-                        Text(
-                            text = "Masuk",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
+                        Column {
+                            Text(
+                                text = "Depotify",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = DepotifyColors.Navy
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            SectionLabel("SISTEM PENGELOLAAN DEPOT")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "Kelola galon dan gas depot lebih praktis.",
+                        fontSize = 13.sp,
+                        color = DepotifyColors.TextSecondary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Form Section Floating Clay Card (White Surface)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clayCard(cornerRadius = 28.dp, color = DepotifyColors.Surface)
+                    .padding(24.dp)
+            ) {
+                Column {
+                    Text(
+                        text = "Selamat Datang",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = DepotifyColors.Navy
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Masuk ke akun untuk mengelola depot.",
+                        fontSize = 12.sp,
+                        color = DepotifyColors.TextSecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Email Field (Clay Inset Input)
+                    Text(
+                        text = "Email",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DepotifyColors.Navy
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clayInset(cornerRadius = 16.dp, backgroundColor = DepotifyColors.SurfaceInset)
+                    ) {
+                        TextField(
+                            value = email,
+                            onValueChange = { email = it },
+                            placeholder = { Text("Masukkan email", color = DepotifyColors.TextMuted, fontSize = 13.sp) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                focusedTextColor = DepotifyColors.Navy,
+                                unfocusedTextColor = DepotifyColors.Navy
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Password Field (Clay Inset Input)
+                    Text(
+                        text = "Kata Sandi",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DepotifyColors.Navy
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clayInset(cornerRadius = 16.dp, backgroundColor = DepotifyColors.SurfaceInset)
+                    ) {
+                        TextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            placeholder = { Text("Masukkan kata sandi", color = DepotifyColors.TextMuted, fontSize = 13.sp) },
+                            singleLine = true,
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Text(
+                                        text = if (passwordVisible) "Sembunyi" else "Lihat",
+                                        color = DepotifyColors.GreenDark,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+                            },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                focusedTextColor = DepotifyColors.Navy,
+                                unfocusedTextColor = DepotifyColors.Navy
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Clay Mint Button
+                    val isLoading = authState is AuthState.Loading
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .clayButton(cornerRadius = 26.dp, enabled = !isLoading)
+                            .clickable(enabled = !isLoading) { viewModel.login(email, password) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White
+                            )
+                        } else {
+                            Text(
+                                text = "Masuk",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+
+                    if (authState is AuthState.Error) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = (authState as AuthState.Error).message,
+                            color = DepotifyColors.Danger,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
-
-                if (authState is AuthState.Error) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = (authState as AuthState.Error).message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

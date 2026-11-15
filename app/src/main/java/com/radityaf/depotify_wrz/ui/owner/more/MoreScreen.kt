@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -26,13 +27,15 @@ fun MoreScreen(
     onAddStockMovementClick: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
     onSalesClick: () -> Unit = {},
+    onKasirClick: () -> Unit = {},
+    onFinancialReportClick: () -> Unit = {},
     onSyncClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier,
-        containerColor = DepotifyColors.Background
+        containerColor = Color.Transparent
     ) { padding ->
         Column(
             modifier = Modifier
@@ -42,39 +45,47 @@ fun MoreScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            PageHeader("Menu Utama", "Lainnya", "Akses master data, stok, notifikasi, dan profil.")
+            PageHeader("Menu", "Lainnya", "Akses fitur dan pengaturan.")
 
-            SectionCard(label = "Penjualan & Operasional", title = "Transaksi & Laporan") {
+            SectionCard(label = "Keuangan", title = "Laporan Keuangan") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MoreMenuItem("Penjualan", Icons.Default.ShoppingCart, onSalesClick)
-                    HorizontalDivider(color = DepotifyColors.Border)
-                    MoreMenuItem("Sinkronisasi Room ke Server DB", Icons.Default.Refresh, onSyncClick)
+                    MoreMenuItem("Laporan Keuangan", Icons.Default.Star, onFinancialReportClick, color = DepotifyColors.Navy)
                 }
             }
 
-            SectionCard(label = "Master Data", title = "Data Pendukung") {
+            SectionCard(label = "Penjualan", title = "Transaksi") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MoreMenuItem("Kasir", Icons.Default.ShoppingCart, onKasirClick, color = DepotifyColors.Navy)
+                    HorizontalDivider(color = DepotifyColors.Border)
+                    MoreMenuItem("Daftar Penjualan", Icons.Default.List, onSalesClick)
+                    HorizontalDivider(color = DepotifyColors.Border)
+                    MoreMenuItem("Sinkronisasi Data", Icons.Default.Refresh, onSyncClick)
+                }
+            }
+
+            SectionCard(label = "Master Data", title = "Data Utama") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     MoreMenuItem("Kategori Produk", Icons.Default.List, onCategoryClick)
                     HorizontalDivider(color = DepotifyColors.Border)
-                    MoreMenuItem("Vendor / Pemasok", Icons.Default.Person, onVendorClick)
+                    MoreMenuItem("Vendor", Icons.Default.Person, onVendorClick)
                 }
             }
 
-            SectionCard(label = "Persediaan & Operasional", title = "Stok & Logistik") {
+            SectionCard(label = "Persediaan", title = "Stok") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MoreMenuItem("Riwayat Pergerakan Stok", Icons.Default.DateRange, onStockClick)
+                    MoreMenuItem("Riwayat Stok", Icons.Default.DateRange, onStockClick)
                     HorizontalDivider(color = DepotifyColors.Border)
-                    MoreMenuItem("Tambah Pergerakan Manual", Icons.Default.Add, onAddStockMovementClick)
+                    MoreMenuItem("Tambah Pergerakan Stok", Icons.Default.Add, onAddStockMovementClick)
                     HorizontalDivider(color = DepotifyColors.Border)
-                    MoreMenuItem("Notifikasi Stok Menipis", Icons.Default.Notifications, onNotificationClick)
+                    MoreMenuItem("Notifikasi Stok", Icons.Default.Notifications, onNotificationClick)
                 }
             }
 
-            SectionCard(label = "Akun", title = "Pengaturan Pengguna") {
+            SectionCard(label = "Akun", title = "Pengguna") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MoreMenuItem("Profil Pengguna", Icons.Default.AccountCircle, onProfileClick)
+                    MoreMenuItem("Profil", Icons.Default.AccountCircle, onProfileClick)
                     HorizontalDivider(color = DepotifyColors.Border)
-                    MoreMenuItem("Keluar Aplikasi", Icons.Default.ExitToApp, onLogout, color = DepotifyColors.Danger)
+                    MoreMenuItem("Keluar", Icons.Default.ExitToApp, onLogout, color = DepotifyColors.Danger)
                 }
             }
         }
@@ -86,13 +97,13 @@ private fun MoreMenuItem(
     title: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    color: androidx.compose.ui.graphics.Color = DepotifyColors.Navy
+    color: Color = DepotifyColors.Navy
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 4.dp),
+            .padding(vertical = 10.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -100,8 +111,15 @@ private fun MoreMenuItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(icon, contentDescription = title, tint = color)
-            Text(title, fontWeight = FontWeight.SemiBold, color = color, fontSize = 14.sp)
+            Box(
+                modifier = Modifier
+                    .clayInset(cornerRadius = 10.dp, backgroundColor = DepotifyColors.SurfaceInset)
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = title, tint = color, modifier = Modifier.size(20.dp))
+            }
+            Text(title, fontWeight = FontWeight.Bold, color = color, fontSize = 14.sp)
         }
         Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = DepotifyColors.TextMuted)
     }

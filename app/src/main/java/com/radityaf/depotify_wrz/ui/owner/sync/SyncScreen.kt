@@ -1,10 +1,9 @@
 package com.radityaf.depotify_wrz.ui.owner.sync
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +18,6 @@ import com.radityaf.depotify_wrz.ui.owner.sales.ErrorBanner
 import com.radityaf.depotify_wrz.ui.owner.sales.SuccessBanner
 import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncScreen(
     modifier: Modifier = Modifier,
@@ -27,23 +25,14 @@ fun SyncScreen(
     onBack: () -> Unit = {}
 ) {
     val isLoading by viewModel.isLoading.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
     val message by viewModel.message.collectAsState()
     val isSuccess by viewModel.isSuccess.collectAsState()
 
     Scaffold(
         modifier = modifier,
-        containerColor = DepotifyColors.Background,
-        topBar = {
-            TopAppBar(
-                title = { Text("Sinkronisasi Database", color = Color.White, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DepotifyColors.Navy)
-            )
-        }
+        containerColor = Color.Transparent,
+        topBar = { DepotifyTopBar("Sinkronisasi", onBack) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -53,7 +42,7 @@ fun SyncScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            PageHeader("Room DB ke Server DB", "Sinkronisasi Data Lokal", "Kirim seluruh perubahan data lokal Room database ke database server utama.")
+            PageHeader("Sinkronisasi", "Penyesuaian Data", "Penyelarasan data lokal dengan server.")
 
             if (!message.isNullOrEmpty()) {
                 if (isSuccess) {
@@ -63,28 +52,58 @@ fun SyncScreen(
                 }
             }
 
-            SectionCard(label = "Sinkronisasi", title = "Kirim Data Lokal ke Server") {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Card Tunggal Sinkronisasi Database
+            SectionCard(label = "Sistem", title = "Sinkronisasi Data") {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text(
-                        "Proses ini akan mengirimkan data produk, kategori, vendor, dan pergerakan stok dari Room Database di perangkat ke Database Server.",
-                        fontSize = 13.sp,
-                        color = DepotifyColors.TextMuted
+                        "Proses sinkronisasi akan mengirimkan perubahan data lokal ke server, kemudian memperbarui data master terbaru dari server.",
+                        fontSize = 12.sp,
+                        color = DepotifyColors.TextSecondary
                     )
 
-                    Button(
-                        onClick = { viewModel.syncData() },
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = DepotifyColors.Green),
-                        enabled = !isLoading
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Status Jaringan:", fontSize = 12.sp, color = DepotifyColors.TextMuted)
+                        Box(
+                            modifier = Modifier
+                                .clayInset(
+                                    cornerRadius = 8.dp,
+                                    backgroundColor = if (isOnline) DepotifyColors.GreenSoft else DepotifyColors.WarningSoft
+                                )
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                if (isOnline) "ONLINE" else "OFFLINE",
+                                color = if (isOnline) DepotifyColors.GreenDark else DepotifyColors.Warning,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = DepotifyColors.Border)
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .clayButton(cornerRadius = 25.dp, enabled = !isLoading)
+                            .clickable(enabled = !isLoading) { viewModel.syncFullDatabase() },
+                        contentAlignment = Alignment.Center
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = DepotifyColors.Navy)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Mengirim Data...", color = DepotifyColors.Navy, fontWeight = FontWeight.Bold)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                                Text("Menyelaraskan Data...", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
                         } else {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = DepotifyColors.Navy)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Kirim ke Server Database", color = DepotifyColors.Navy, fontWeight = FontWeight.Bold)
+                            Text("Sinkronisasi Data", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
                         }
                     }
                 }

@@ -6,11 +6,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ProductDao {
-    @Query("SELECT * FROM products ORDER BY id DESC")
+    @Query("SELECT * FROM products WHERE isDeleted = 0 ORDER BY id DESC")
     fun getAllProducts(): Flow<List<ProductEntity>>
 
-    @Query("SELECT * FROM products")
+    @Query("SELECT * FROM products WHERE vendorId = :vendorId AND isDeleted = 0 ORDER BY id DESC")
+    fun getProductsByVendor(vendorId: Int): Flow<List<ProductEntity>>
+
+    @Query("SELECT * FROM products WHERE isDeleted = 0")
     suspend fun getAllProductsSync(): List<ProductEntity>
+
+    @Query("SELECT * FROM products WHERE isSynced = 0 AND isDeleted = 0")
+    suspend fun getUnsyncedProducts(): List<ProductEntity>
 
     @Query("SELECT * FROM products WHERE id = :id")
     suspend fun getProductById(id: Int): ProductEntity?

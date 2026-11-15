@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,21 +27,30 @@ fun PoListScreen(
 
     Scaffold(
         modifier = modifier,
-        containerColor = DepotifyColors.Background,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0), // sudah ditangani Scaffold di MainScreen
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddClick,
-                containerColor = DepotifyColors.Green,
-                contentColor = DepotifyColors.Navy
-            ) { Text("+", fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clayButton(cornerRadius = 28.dp)
+                    .clickable { onAddClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("+", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        DepotifyRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = { viewModel.refresh() },
+            modifier = Modifier.padding(padding).fillMaxSize()
         ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 88.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             item { PageHeader("Pembelian", "Purchase Order", "Daftar pesanan barang ke vendor.") }
 
             if (state.items.isEmpty()) {
@@ -48,26 +58,35 @@ fun PoListScreen(
             }
 
             items(state.items, key = { it.id }) { po ->
-                DepotifyCard(Modifier.fillMaxWidth().clickable { onPoClick(po.id) }) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("PO #${po.id}", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
-                        StatusBadge(po.status, positive = po.status == "DITERIMA")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clayCard(cornerRadius = 20.dp)
+                        .clickable { onPoClick(po.id) }
+                        .padding(16.dp)
+                ) {
+                    Column {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("PO #${po.id}", fontWeight = FontWeight.ExtraBold, color = DepotifyColors.Navy, fontSize = 16.sp)
+                            PoStatusBadge(po.status)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(po.vendorName, fontSize = 13.sp, color = DepotifyColors.TextSecondary)
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            formatRupiah(po.total),
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 16.sp,
+                            color = DepotifyColors.GreenDark
+                        )
                     }
-                    Spacer(Modifier.height(4.dp))
-                    Text(po.vendorName, fontSize = 13.sp, color = DepotifyColors.TextSecondary)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        formatRupiah(po.total),
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 16.sp,
-                        color = DepotifyColors.Navy
-                    )
                 }
             }
         }
     }
+}
 }

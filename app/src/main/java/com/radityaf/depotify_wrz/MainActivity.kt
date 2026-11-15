@@ -4,12 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import com.radityaf.depotify_wrz.ui.auth.AuthState
 import com.radityaf.depotify_wrz.ui.auth.AuthViewModel
 import com.radityaf.depotify_wrz.ui.auth.LoginScreen
 import com.radityaf.depotify_wrz.ui.main.MainScreen
+import com.radityaf.depotify_wrz.ui.sync.InitialSyncScreen
 import com.radityaf.depotify_wrz.ui.unsupported.UnsupportedScreen
 import com.radityaf.depotify_wrz.ui.vendor.VendorMainScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -23,10 +23,21 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val authState by authViewModel.authState.collectAsState()
+            var isInitialSyncDone by remember { mutableStateOf(false) }
+
+            LaunchedEffect(authState) {
+                if (authState !is AuthState.LoggedIn) {
+                    isInitialSyncDone = false
+                }
+            }
 
             when (val state = authState) {
                 is AuthState.LoggedIn -> {
-                    if (state.user.role == "vendor") {
+                    if (!isInitialSyncDone) {
+                        InitialSyncScreen(
+                            onSyncComplete = { isInitialSyncDone = true }
+                        )
+                    } else if (state.user.role == "vendor") {
                         VendorMainScreen(
                             user = state.user,
                             onLogout = { authViewModel.logout() }
@@ -51,4 +62,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-

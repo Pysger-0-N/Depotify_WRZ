@@ -1,11 +1,9 @@
 package com.radityaf.depotify_wrz.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,42 +16,46 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
 import java.util.Locale
 
-/** Label kecil hijau huruf kapital, contoh: "OVERVIEW", "PERFORMA". */
+/** Label kecil hijau terbenam (inset pill badge) seperti "OVERVIEW", "PERFORMA" di web. */
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text.uppercase(),
-        modifier = modifier,
-        color = DepotifyColors.GreenDark,
-        fontSize = 10.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.5.sp
-    )
+    Box(
+        modifier = modifier
+            .clayInset(cornerRadius = 10.dp)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text.uppercase(),
+            color = DepotifyColors.GreenDark,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.2.sp
+        )
+    }
 }
 
-/** Kartu putih dengan sudut membulat dan border tipis, seperti kartu di web. */
+/** Kartu Inflated Claymorphism dengan double shadow lembut. */
 @Composable
 fun DepotifyCard(
     modifier: Modifier = Modifier,
+    cornerRadius: Dp = 20.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = DepotifyColors.Surface,
-        border = BorderStroke(1.dp, DepotifyColors.Border),
-        shadowElevation = 1.dp
+    Box(
+        modifier = modifier.clayCard(cornerRadius = cornerRadius)
     ) {
         Column(Modifier.padding(16.dp), content = content)
     }
 }
 
-/** Kartu berisi label hijau + judul + garis pemisah + isi. */
+/** Kartu berisi label hijau terbenam + judul + garis pemisah + isi. */
 @Composable
 fun SectionCard(
     label: String,
@@ -63,7 +65,7 @@ fun SectionCard(
 ) {
     DepotifyCard(modifier) {
         SectionLabel(label)
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(8.dp))
         Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = DepotifyColors.Navy)
         Spacer(Modifier.height(10.dp))
         HorizontalDivider(color = DepotifyColors.Border)
@@ -72,7 +74,7 @@ fun SectionCard(
     }
 }
 
-/** Kartu angka ringkasan (Transaksi hari ini, Pendapatan, dst). */
+/** Kartu angka ringkasan Claymorphism (Transaksi hari ini, Pendapatan, dst). */
 @Composable
 fun StatCard(
     label: String,
@@ -99,30 +101,34 @@ fun StatCard(
                 letterSpacing = 1.sp
             )
             Box(
-                Modifier.size(26.dp).clip(RoundedCornerShape(8.dp)).background(badgeBackground),
+                Modifier
+                    .size(28.dp)
+                    .clayInset(cornerRadius = 10.dp, backgroundColor = badgeBackground)
+                    .clip(RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(badge, color = badgeColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(badge, color = badgeColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Text(value, color = valueColor, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+        Spacer(Modifier.height(12.dp))
+        Text(value, color = valueColor, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
         Spacer(Modifier.height(2.dp))
         Text(caption, color = DepotifyColors.TextMuted, fontSize = 11.sp)
     }
 }
 
-/** Kotak garis putus-putus untuk kondisi data kosong. */
+/** Kotak garis putus-putus Claymorphism untuk kondisi data kosong. */
 @Composable
 fun EmptyState(message: String, modifier: Modifier = Modifier) {
     val dashColor = DepotifyColors.Border
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .clayInset(cornerRadius = 16.dp, backgroundColor = DepotifyColors.SurfaceInset)
             .drawBehind {
                 drawRoundRect(
                     color = dashColor,
-                    cornerRadius = CornerRadius(12.dp.toPx()),
+                    cornerRadius = CornerRadius(16.dp.toPx()),
                     style = Stroke(
                         width = 1.5.dp.toPx(),
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))

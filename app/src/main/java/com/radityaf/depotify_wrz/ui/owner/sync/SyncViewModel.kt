@@ -4,9 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.radityaf.depotify_wrz.data.repository.SyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -14,6 +12,9 @@ import javax.inject.Inject
 class SyncViewModel @Inject constructor(
     private val syncRepository: SyncRepository
 ) : ViewModel() {
+
+    val isOnline: StateFlow<Boolean> = syncRepository.isOnlineFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), syncRepository.isConnected())
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -24,18 +25,22 @@ class SyncViewModel @Inject constructor(
     private val _isSuccess = MutableStateFlow(false)
     val isSuccess: StateFlow<Boolean> = _isSuccess.asStateFlow()
 
-    fun syncData() {
+    init {
+        syncRepository.startAutoSyncListener(viewModelScope)
+    }
+
+    fun syncFullDatabase() {
         viewModelScope.launch {
             _isLoading.value = true
             _message.value = null
-            val result = syncRepository.syncRoomToServer()
+            val result = syncRepository.syncFullTwoWay()
             _isLoading.value = false
             result.onSuccess {
                 _isSuccess.value = true
-                _message.value = "Berhasil mengirim data Room Database ke Server Database!"
+                _message.value = "Sinkronisasi selesai. Data lokal dan server sudah teratur."
             }.onFailure { e ->
                 _isSuccess.value = false
-                _message.value = e.message ?: "Gagal sinkronisasi data ke server"
+                _message.value = e.message ?: "Gagal sinkronisasi data dengan server."
             }
         }
     }

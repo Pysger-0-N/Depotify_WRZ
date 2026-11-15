@@ -41,9 +41,13 @@ class SalesViewModel @Inject constructor(
             result.onSuccess { list ->
                 _sales.value = list
             }.onFailure { e ->
-                _errorMessage.value = e.message ?: "Gagal memuat penjualan"
+                _errorMessage.value = e.message ?: "Gagal memuat data penjualan"
             }
         }
+    }
+
+    fun refresh(status: String? = null) {
+        loadSales(status)
     }
 
     fun confirmSale(id: Int) {
@@ -52,10 +56,10 @@ class SalesViewModel @Inject constructor(
             val result = salesRepository.confirmSale(id)
             _isLoading.value = false
             result.onSuccess {
-                _successMessage.value = "Transaksi berhasil dikonfirmasi (tatap muka)"
+                _successMessage.value = "Transaksi berhasil dikonfirmasi"
                 loadSales()
             }.onFailure { e ->
-                _errorMessage.value = e.message ?: "Gagal konfirmasi transaksi"
+                _errorMessage.value = e.message ?: "Gagal mengonfirmasi transaksi"
             }
         }
     }
@@ -66,7 +70,7 @@ class SalesViewModel @Inject constructor(
             val result = salesRepository.completeSale(id)
             _isLoading.value = false
             result.onSuccess {
-                _successMessage.value = "Transaksi selesai dan tercatat ke database"
+                _successMessage.value = "Transaksi selesai dan tercatat di basis data"
                 loadSales()
             }.onFailure { e ->
                 _errorMessage.value = e.message ?: "Gagal menyelesaikan transaksi"

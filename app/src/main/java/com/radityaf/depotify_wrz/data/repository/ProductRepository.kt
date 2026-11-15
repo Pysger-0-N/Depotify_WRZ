@@ -40,8 +40,9 @@ class ProductRepository @Inject constructor(
     suspend fun getProductDetail(id: Int): Result<Product> {
         return try {
             val response = apiService.getProductDetail(id)
-            if (response.isSuccessful && response.body() != null && response.body()!!.success) {
-                Result.success(response.body()!!.data)
+            val data = response.body()?.data
+            if (response.isSuccessful && data != null) {
+                Result.success(data)
             } else {
                 Result.failure(Exception("Detail produk tidak ditemukan"))
             }
@@ -53,8 +54,9 @@ class ProductRepository @Inject constructor(
     suspend fun createProduct(request: CreateProductRequest): Result<Product> {
         return try {
             val response = apiService.createProduct(request)
-            if (response.isSuccessful && response.body() != null && response.body()!!.success) {
-                Result.success(response.body()!!.data)
+            val data = response.body()?.data
+            if (response.isSuccessful && data != null) {
+                Result.success(data)
             } else {
                 Result.failure(Exception(response.body()?.message ?: "Gagal membuat produk"))
             }
@@ -66,8 +68,9 @@ class ProductRepository @Inject constructor(
     suspend fun updateProduct(id: Int, request: CreateProductRequest): Result<Product> {
         return try {
             val response = apiService.updateProduct(id, request)
-            if (response.isSuccessful && response.body() != null && response.body()!!.success) {
-                Result.success(response.body()!!.data)
+            val data = response.body()?.data
+            if (response.isSuccessful && data != null) {
+                Result.success(data)
             } else {
                 Result.failure(Exception(response.body()?.message ?: "Gagal memperbarui produk"))
             }
@@ -92,36 +95,38 @@ class ProductRepository @Inject constructor(
     suspend fun getCategories(): Result<List<Category>> {
         return try {
             val response = apiService.getCategories()
-            if (response.isSuccessful && response.body() != null && response.body()!!.success) {
-                Result.success(response.body()!!.data)
+            if (response.isSuccessful) {
+                Result.success(response.body()?.data ?: emptyList())
             } else {
-                Result.failure(Exception("Gagal memuat kategori"))
+                Result.failure(Exception(parseErrorMessage(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun createCategory(code: String, name: String): Result<Category> {
+    suspend fun createCategory(code: String, name: String, description: String? = null): Result<Category> {
         return try {
-            val response = apiService.createCategory(CreateCategoryRequest(code, name))
-            if (response.isSuccessful && response.body() != null && response.body()!!.success) {
-                Result.success(response.body()!!.data)
+            val response = apiService.createCategory(CreateCategoryRequest(code, name, description))
+            if (response.isSuccessful) {
+                val cat = response.body()?.effectiveCategory ?: Category(code = code, name = name, description = description)
+                Result.success(cat)
             } else {
-                Result.failure(Exception("Gagal membuat kategori"))
+                Result.failure(Exception(parseErrorMessage(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun updateCategory(id: Int, code: String, name: String): Result<Category> {
+    suspend fun updateCategory(id: Int, code: String, name: String, description: String? = null): Result<Category> {
         return try {
-            val response = apiService.updateCategory(id, CreateCategoryRequest(code, name))
-            if (response.isSuccessful && response.body() != null && response.body()!!.success) {
-                Result.success(response.body()!!.data)
+            val response = apiService.updateCategory(id, CreateCategoryRequest(code, name, description))
+            if (response.isSuccessful) {
+                val cat = response.body()?.effectiveCategory ?: Category(id = id, code = code, name = name, description = description)
+                Result.success(cat)
             } else {
-                Result.failure(Exception("Gagal mengupdate kategori"))
+                Result.failure(Exception(parseErrorMessage(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -131,21 +136,40 @@ class ProductRepository @Inject constructor(
     suspend fun deleteCategory(id: Int): Result<Boolean> {
         return try {
             val response = apiService.deleteCategory(id)
-            if (response.isSuccessful && response.body() != null && response.body()!!.success) {
+            if (response.isSuccessful) {
                 Result.success(true)
             } else {
-                Result.failure(Exception("Kategori tidak dapat dihapus"))
+                Result.failure(Exception(parseErrorMessage(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    private fun <T> parseErrorMessage(response: retrofit2.Response<T>): String {
+        return try {
+            val errorStr = response.errorBody()?.string()
+            if (!errorStr.isNullOrBlank()) {
+                if (errorStr.contains("\"message\":")) {
+                    val regex = "\"message\"\\s*:\\s*\"([^\"]+)\"".toRegex()
+                    val match = regex.find(errorStr)
+                    if (match != null) return match.groupValues[1]
+                }
+                errorStr
+            } else {
+                "Gagal terhubung ke server database (HTTP ${response.code()})"
+            }
+        } catch (_: Exception) {
+            "Gagal terhubung ke server database (HTTP ${response.code()})"
+        }
+    }
+
     suspend fun getProductByBarcode(code: String): Result<Product> {
         return try {
             val response = apiService.getProductByBarcode(code)
-            if (response.isSuccessful && response.body() != null && response.body()!!.success) {
-                Result.success(response.body()!!.data)
+            val data = response.body()?.data
+            if (response.isSuccessful && data != null) {
+                Result.success(data)
             } else {
                 Result.failure(Exception("Produk tidak ditemukan"))
             }
