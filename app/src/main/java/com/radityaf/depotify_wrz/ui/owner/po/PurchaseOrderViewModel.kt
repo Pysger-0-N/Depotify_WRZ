@@ -217,49 +217,11 @@ class PurchaseOrderViewModel @Inject constructor(
         create(vendorId, productId, vendorName, productName, qty, price, "cash", null, null, onComplete)
     }
 
-    fun formatWhatsAppUrl(po: PurchaseOrder): String? {
-        val vendor = _uiState.value.vendors.find { it.name.equals(po.vendorName, ignoreCase = true) }
-        val rawPhone = vendor?.phone?.filter { it.isDigit() }?.takeIf { it.isNotBlank() }
-        val phone = when {
-            rawPhone == null -> null
-            rawPhone.startsWith("0") -> "62" + rawPhone.substring(1)
-            rawPhone.startsWith("62") -> rawPhone
-            else -> "62" + rawPhone
-        }
-
-        val sb = StringBuilder()
-        sb.append("Halo *${po.vendorName}*,\n\n")
-        sb.append("Berikut rincian Purchase Order (PO) dari Depotify:\n")
-        sb.append("• *No. PO:* #PO-${po.id}\n")
-        sb.append("• *Status:* ${po.status}\n\n")
-        sb.append("*Detail Pesanan:*\n")
-        po.items.forEach { item ->
-            sb.append("- ${item.productName} (${item.qty}x @ ${formatRupiah(item.price)})\n")
-        }
-        sb.append("\n*Total Pembelian:* ${formatRupiah(po.total)}\n\n")
-        sb.append("Mohon diproses. Terima kasih!")
-
-        val encodedText = URLEncoder.encode(sb.toString(), "UTF-8")
-        return if (phone != null) {
-            "https://api.whatsapp.com/send?phone=$phone&text=$encodedText"
-        } else {
-            "https://api.whatsapp.com/send?text=$encodedText"
-        }
-    }
-
-    fun sendPoToWhatsAppAndMarkShipped(po: PurchaseOrder, context: Context) {
-        val waUrl = formatWhatsAppUrl(po)
-        if (waUrl != null) {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(waUrl))
-            context.startActivity(intent)
-
-            if (po.status == "PENDING" || po.status == "DIKONFIRMASI") {
-                viewModelScope.launch {
-                    purchaseOrderStore.updateStatus(po.id, "DIKIRIM")
-                    purchaseOrderRepository.updatePoStatus(po.id, "shipped", "Dikirim via WhatsApp")
-                    fetchServerPurchaseOrders()
-                }
-            }
+    fun markPoAsShippedDueToExport(poId: Int) {
+        viewModelScope.launch {
+            purchaseOrderStore.updateStatus(poId, "DIKIRIM")
+            purchaseOrderRepository.updatePoStatus(poId, "shipped", "Diekspor ke Excel")
+            fetchServerPurchaseOrders()
         }
     }
 

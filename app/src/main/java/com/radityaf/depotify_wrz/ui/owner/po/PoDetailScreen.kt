@@ -33,6 +33,8 @@ fun PoDetailScreen(
         viewModel.fetchServerPurchaseOrders()
     }
 
+    var exportedFilePath by remember { mutableStateOf<String?>(null) }
+
     Scaffold(
         modifier = modifier,
         containerColor = Color.Transparent,
@@ -93,20 +95,23 @@ fun PoDetailScreen(
                 }
             }
 
-            // WhatsApp Share PO Option
-            val waUrl = viewModel.formatWhatsAppUrl(po)
+            // Export PO to Excel Button
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
                     .clayButton(cornerRadius = 25.dp)
                     .clickable {
-                        viewModel.sendPoToWhatsAppAndMarkShipped(po, context)
+                        val path = exportPoExcel(context, po)
+                        exportedFilePath = path
+                        if (po.status == "PENDING" || po.status == "DIKONFIRMASI") {
+                            viewModel.markPoAsShippedDueToExport(po.id)
+                        }
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (waUrl != null) "Kirim Laporan PO ke WhatsApp Vendor" else "Vendor Belum Ada No. WhatsApp",
+                    text = "Ekspor PO ke Excel",
                     color = Color.White,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 14.sp
@@ -123,7 +128,7 @@ fun PoDetailScreen(
                                 .padding(14.dp)
                         ) {
                             Text(
-                                "Menunggu konfirmasi vendor. Kirim laporan via WhatsApp dan konfirmasi penerimaan barang secara langsung jika perlu.",
+                                "Menunggu konfirmasi vendor. Ekspor laporan ke Excel dan konfirmasi penerimaan barang secara langsung jika perlu.",
                                 color = DepotifyColors.Warning,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
@@ -213,6 +218,67 @@ fun PoDetailScreen(
                     }
                 }
             }
+
+            // Export Success Dialog
+            if (exportedFilePath != null) {
+                AlertDialog(
+                    onDismissRequest = { exportedFilePath = null },
+                    title = { Text("Ekspor PO Berhasil", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy) },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("File Excel (CSV) Purchase Order berhasil dibuat dan disimpan ke perangkat.", fontSize = 13.sp, color = DepotifyColors.TextSecondary)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clayInset(cornerRadius = 12.dp, backgroundColor = DepotifyColors.SurfaceInset)
+                                    .padding(12.dp)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("Direktori: Folder Downloads", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
+                                    Text("Nama File: ${exportedFilePath!!.substringAfterLast("/")}", fontSize = 12.sp, color = DepotifyColors.GreenDark, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = { exportedFilePath = null },
+                            colors = ButtonDefaults.buttonColors(containerColor = DepotifyColors.Navy)
+                        ) {
+                            Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    containerColor = DepotifyColors.Surface
+                )
+            }
         }
     }
+}
+
+private fun exportPoExcel(
+    context: android.content.Context,
+    po: PurchaseOrder
+): String {
+    val timeStamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
+    val fileName = "PurchaseOrder_#${po.id}_$timeStamp.csv"
+
+    val csvContent = buildString {
+        appendLine("DEPOTIFY — PURCHASE ORDER")
+        appendLine("No. PO,#PO-${po.id}")
+        appendLine("Vendor,${po.vendorName}")
+        appendLine("Status,${po.status}")
+        appendLine("Metode Pembayaran,${po.paymentMethod.uppercase()}")
+        appendLine()
+        appendLine("RINCIAN ITEM PESANAN")
+        appendLine("Nama Produk,Jumlah,Harga Satuan,Subtotal")
+        po.items.forEach { item ->
+            val safeName = item.productName.replace(",", " ")
+            val subtotal = item.qty * item.price
+            appendLine("$safeName,${item.qty},${item.price},$subtotal")
+        }
+        appendLine()
+        appendLine("TOTAL PEMBELIAN,${po.total}")
+    }
+
+    return com.radityaf.depotify_wrz.utils.ExportUtils.saveCsvToDownloads(context, fileName, csvContent)
 }
