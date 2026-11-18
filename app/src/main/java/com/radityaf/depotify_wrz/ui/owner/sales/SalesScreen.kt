@@ -142,7 +142,10 @@ fun SaleCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (sale.status == "pending") {
+                val statusLower = sale.status.lowercase()
+                val isUnconfirmed = statusLower == "pending" || statusLower == "processing"
+
+                if (isUnconfirmed) {
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -151,7 +154,17 @@ fun SaleCard(
                             .clickable(enabled = !isLoading, onClick = onConfirm),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Konfirmasi", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                        Text("Konformasi", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clayInset(cornerRadius = 14.dp, backgroundColor = DepotifyColors.SurfaceInset),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Konformasi", color = DepotifyColors.TextMuted, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
 
@@ -174,8 +187,10 @@ fun SaleCard(
 fun BadgeStatus(status: String) {
     val (color, text) = when (status.lowercase()) {
         "pending" -> DepotifyColors.Warning to "Pending"
+        "processing" -> DepotifyColors.Warning to "Diproses"
         "confirmed" -> DepotifyColors.GreenDark to "Dikonfirmasi"
-        "selesai" -> DepotifyColors.Navy to "Selesai"
+        "completed", "selesai" -> DepotifyColors.Navy to "Selesai"
+        "cancelled" -> DepotifyColors.Danger to "Dibatalkan"
         else -> DepotifyColors.TextMuted to status
     }
     Box(

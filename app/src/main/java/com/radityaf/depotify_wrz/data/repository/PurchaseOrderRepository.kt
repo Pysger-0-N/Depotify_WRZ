@@ -18,9 +18,9 @@ class PurchaseOrderRepository @Inject constructor(
 ) {
     private fun handleNetworkException(e: Exception): Exception {
         return when (e) {
-            is ConnectException -> Exception("Gagal terhubung ke IP 192.168.100.179:8000. Pastikan 'php artisan serve --host=0.0.0.0 --port=8000' berjalan di laptop & Firewall tidak memblokir Port 8000.")
-            is SocketTimeoutException -> Exception("Koneksi ke server 192.168.100.179:8000 mengalami timeout. Periksa jaringan hotspot.")
-            is UnknownHostException -> Exception("IP Server 192.168.100.179 tidak ditemukan pada jaringan saat ini.")
+            is ConnectException -> Exception("Gagal terhubung. Pastikan 'php artisan serve --host=0.0.0.0 --port=8000' berjalan di laptop & Firewall tidak memblokir Port 8000.")
+            is SocketTimeoutException -> Exception("Koneksi ke server mengalami timeout. Periksa jaringan.")
+            is UnknownHostException -> Exception("Server tidak ditemukan pada jaringan saat ini.")
             else -> e
         }
     }

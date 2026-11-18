@@ -53,10 +53,14 @@ class SalesViewModel @Inject constructor(
     fun confirmSale(id: Int) {
         viewModelScope.launch {
             _isLoading.value = true
+            _errorMessage.value = null
             val result = salesRepository.confirmSale(id)
             _isLoading.value = false
             result.onSuccess {
                 _successMessage.value = "Transaksi berhasil dikonfirmasi"
+                _sales.value = _sales.value.map { sale ->
+                    if (sale.id == id) sale.copy(status = "confirmed") else sale
+                }
                 loadSales()
             }.onFailure { e ->
                 _errorMessage.value = e.message ?: "Gagal mengonfirmasi transaksi"

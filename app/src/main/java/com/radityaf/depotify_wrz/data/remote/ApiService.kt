@@ -145,11 +145,8 @@ interface ApiService {
     @POST("v1/sales")
     suspend fun createSale(@Body request: CreateSaleRequest): Response<SaleApiResponse>
 
-    @PUT("v1/sales/{id}/confirm")
-    suspend fun confirmSale(@Path("id") id: Int): Response<SaleApiResponse>
-
-    @PUT("v1/sales/{id}/complete")
-    suspend fun completeSale(@Path("id") id: Int): Response<SaleApiResponse>
+    @PUT("v1/sales/{id}")
+    suspend fun updateSale(@Path("id") id: Int, @Body request: SaleStatusUpdateRequest): Response<SaleApiResponse>
 
     // Sync Room to Server Database
     @POST("v1/sync/room-to-server")

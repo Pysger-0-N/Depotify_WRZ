@@ -413,6 +413,11 @@ data class CreateSaleRequest(
 )
 
 @Serializable
+data class SaleStatusUpdateRequest(
+    val status: String
+)
+
+@Serializable
 data class SaleTransaction(
     val id: Int = 0,
     val transaction_code: String = "",
@@ -573,4 +578,11 @@ data class SaleListApiResponse(
 }
 
 @Serializable
-data class SaleApiResponse(val success: Boolean = true, val message: String = "", val data: SaleTransaction? = null)
+data class SaleApiResponse(
+    val success: Boolean = true,
+    val message: String = "",
+    val data: SaleTransaction? = null,
+    val sale: SaleTransaction? = null
+) {
+    val effectiveSale: SaleTransaction? get() = data ?: sale
+}
