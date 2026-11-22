@@ -28,7 +28,6 @@ object ExportUtils {
                     }
                     savedPath = "Folder Downloads/$fileName"
 
-                    // Index file for MediaScanner / Recent apps (MIUI / HyperOS File Manager)
                     try {
                         val projection = arrayOf(MediaStore.Downloads.DATA)
                         resolver.query(uri, projection, null, null, null)?.use { cursor ->
@@ -54,13 +53,61 @@ object ExportUtils {
                     fos.write(csvContent.toByteArray(Charsets.UTF_8))
                 }
                 savedPath = file.absolutePath
-
-                // Force media scanner to index file so it appears in "Recent" (MIUI File Manager)
                 MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf("text/csv"), null)
             }
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(context, "Gagal mengekspor file: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+        return savedPath
+    }
+
+    fun savePdfToDownloads(context: Context, fileName: String, pdfBytes: ByteArray): String {
+        var savedPath = ""
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                    put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                }
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                if (uri != null) {
+                    resolver.openOutputStream(uri)?.use { outputStream ->
+                        outputStream.write(pdfBytes)
+                    }
+                    savedPath = "Folder Downloads/$fileName"
+                    try {
+                        val projection = arrayOf(MediaStore.Downloads.DATA)
+                        resolver.query(uri, projection, null, null, null)?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                val columnIndex = cursor.getColumnIndex(MediaStore.Downloads.DATA)
+                                if (columnIndex != -1) {
+                                    val filePath = cursor.getString(columnIndex)
+                                    if (!filePath.isNullOrBlank()) {
+                                        MediaScannerConnection.scanFile(context, arrayOf(filePath), arrayOf("application/pdf"), null)
+                                    }
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            } else {
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!downloadsDir.exists()) {
+                    downloadsDir.mkdirs()
+                }
+                val file = File(downloadsDir, fileName)
+                FileOutputStream(file).use { fos ->
+                    fos.write(pdfBytes)
+                }
+                savedPath = file.absolutePath
+                MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf("application/pdf"), null)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(context, "Gagal mengekspor PDF: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
         }
         return savedPath
     }

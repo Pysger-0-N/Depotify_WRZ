@@ -41,6 +41,7 @@ fun VendorProductFormScreen(
     var sellingPrice by remember { mutableStateOf("0") }
     var depositPrice by remember { mutableStateOf("0") }
     var purchasePrice by remember { mutableStateOf("0") }
+    var stockContent by remember { mutableStateOf("0") }
     var minStock by remember { mutableStateOf("5") }
     var isActive by remember { mutableStateOf(true) }
 
@@ -55,30 +56,36 @@ fun VendorProductFormScreen(
                 sku = prod.sku ?: ""
                 variant = prod.variant ?: ""
                 unit = prod.unit
-                selectedCategoryId = prod.categoryId
-                selectedCategoryName = prod.categoryName
-                sellingPrice = prod.sellingPrice.toLong().toString()
-                depositPrice = prod.depositPrice?.toLong()?.toString() ?: "0"
-                purchasePrice = prod.purchasePrice.toLong().toString()
-                minStock = prod.minimumStock.toString()
-                isActive = prod.isActive
-                usesContainer = prod.depositPrice != null && prod.depositPrice > 0.0
+                selectedCategoryId = prod.category_id
+                selectedCategoryName = prod.category?.name ?: state.categories.find { it.id == prod.category_id }?.name ?: ""
+                sellingPrice = prod.selling_price.toLong().toString()
+                depositPrice = prod.deposit_price?.toLong()?.toString() ?: "0"
+                purchasePrice = prod.purchase_price.toLong().toString()
+                stockContent = prod.stock_content.toString()
+                minStock = prod.minimum_stock.toString()
+                isActive = prod.is_active
+                usesContainer = prod.deposit_price != null && prod.deposit_price > 0.0
             }
         }
     }
 
-    LaunchedEffect(state.categories) {
+    LaunchedEffect(state.categories, selectedCategoryId) {
         if (selectedCategoryId == null && state.categories.isNotEmpty()) {
             val first = state.categories.first()
             selectedCategoryId = first.id
             selectedCategoryName = first.name
+        } else if (selectedCategoryId != null && selectedCategoryName.isBlank()) {
+            val found = state.categories.find { it.id == selectedCategoryId }
+            if (found != null) {
+                selectedCategoryName = found.name
+            }
         }
     }
 
     Scaffold(
         modifier = modifier,
         containerColor = Color.Transparent,
-        topBar = { DepotifyTopBar(if (productId == null) "Tambah Produk Vendor" else "Ubah Produk Vendor", onBack) }
+        topBar = { DepotifyTopBar(if (productId == null) "Tambah Produk" else "Ubah Produk", onBack) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -89,9 +96,9 @@ fun VendorProductFormScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             PageHeader(
-                "Katalog Vendor",
-                if (productId == null) "Form Produk Baru" else "Edit Data Produk Vendor",
-                "Produk ini akan dikaitkan dengan vendor '${user.name}'."
+                "Katalog Produk",
+                if (productId == null) "Form Produk Baru" else "Edit Data Produk",
+                "Kelola informasi produk untuk vendor ${user.name}."
             )
 
             if (!state.errorMessage.isNullOrBlank()) {
@@ -100,7 +107,6 @@ fun VendorProductFormScreen(
 
             SectionCard(label = "Detail Utama", title = "Informasi Dasar Produk") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Category Dropdown
                     ExposedDropdownMenuBox(
                         expanded = categoryExpanded,
                         onExpandedChange = { categoryExpanded = it }
@@ -120,6 +126,7 @@ fun VendorProductFormScreen(
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color.Transparent,
                                     unfocusedContainerColor = Color.Transparent,
+                                    disabledContainerColor = Color.Transparent,
                                     focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent,
                                     focusedTextColor = DepotifyColors.Navy,
@@ -134,7 +141,7 @@ fun VendorProductFormScreen(
                         ) {
                             if (state.categories.isEmpty()) {
                                 DropdownMenuItem(
-                                    text = { Text("Belum ada kategori di Database") },
+                                    text = { Text("Belum ada kategori") },
                                     onClick = { categoryExpanded = false }
                                 )
                             }
@@ -152,10 +159,10 @@ fun VendorProductFormScreen(
                     }
 
                     DepotifyTextField("Nama Produk *", name, { name = it }, placeholder = "Contoh: Aqua Galon 19L")
-                    DepotifyTextField("SKU / Kode (Opsional)", sku, { sku = it }, placeholder = "Contoh: SUPP-AQUA-19L")
-                    DepotifyTextField("Varian (Opsional)", variant, { variant = it }, placeholder = "Contoh: 19 L")
+                    DepotifyTextField("Kode SKU", sku, { sku = it }, placeholder = "Contoh: SUPP-AQUA-19L")
+                    DepotifyTextField("Varian", variant, { variant = it }, placeholder = "Contoh: 19 Liter")
 
-                    Text("Unit / Satuan", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
+                    Text("Satuan Unit", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("canister" to "Kanister", "gallon" to "Galon", "pcs" to "Pcs", "other" to "Lainnya").forEach { (key, label) ->
                             val selected = unit == key
@@ -179,14 +186,14 @@ fun VendorProductFormScreen(
                 }
             }
 
-            SectionCard(label = "Pengaturan Harga", title = "Harga Beli & Jual") {
+            SectionCard(label = "Pengaturan Harga", title = "Harga Jual dan Modal") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Tabung / Galon (Deposit)?", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
+                        Text("Menggunakan Tabung Deposit", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
                         Switch(
                             checked = usesContainer,
                             onCheckedChange = { usesContainer = it },
@@ -198,13 +205,14 @@ fun VendorProductFormScreen(
                         DepotifyTextField("Harga Deposit Tabung", depositPrice, { depositPrice = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
                     }
 
-                    DepotifyTextField("Harga Pasokan / Modal ke Owner *", purchasePrice, { purchasePrice = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
-                    DepotifyTextField("Harga Jual Eceran Toko Depot", sellingPrice, { sellingPrice = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
+                    DepotifyTextField("Harga Modal / Pasokan *", purchasePrice, { purchasePrice = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
+                    DepotifyTextField("Harga Jual Eceran", sellingPrice, { sellingPrice = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
                 }
             }
 
-            SectionCard(label = "Stok & Status", title = "Pengaturan Status Produk") {
+            SectionCard(label = "Stok dan Status", title = "Pengaturan Stok Awal") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DepotifyTextField("Stok Awal Tersedia", stockContent, { stockContent = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
                     DepotifyTextField("Batas Stok Minimum", minStock, { minStock = it.filter(Char::isDigit) }, keyboardType = KeyboardType.Number)
 
                     Row(
@@ -212,7 +220,7 @@ fun VendorProductFormScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Produk Aktif", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
+                        Text("Status Produk Aktif", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy)
                         Switch(
                             checked = isActive,
                             onCheckedChange = { isActive = it },
@@ -223,13 +231,12 @@ fun VendorProductFormScreen(
             }
 
             DepotifyButton(
-                text = if (state.isSubmitting) "Menyimpan..." else "Simpan Produk",
+                text = if (state.isSubmitting) "Menyimpan..." else "Simpan produk",
                 onClick = {
                     viewModel.saveProduct(
                         vendorId = user.effectiveVendorId,
                         productId = productId,
                         categoryId = selectedCategoryId ?: 1,
-                        categoryName = selectedCategoryName,
                         name = name,
                         sku = sku,
                         variant = variant,
@@ -237,6 +244,7 @@ fun VendorProductFormScreen(
                         sellingPrice = sellingPriceVal,
                         depositPrice = if (usesContainer) depositPrice.toDoubleOrNull() else null,
                         purchasePrice = purchasePriceVal,
+                        stockContent = stockContent.toIntOrNull() ?: 0,
                         minimumStock = minStock.toIntOrNull() ?: 5,
                         isActive = isActive,
                         onSuccess = onBack

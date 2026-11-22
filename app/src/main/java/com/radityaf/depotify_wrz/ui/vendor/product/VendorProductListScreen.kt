@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.radityaf.depotify_wrz.data.local.entity.ProductEntity
+import com.radityaf.depotify_wrz.data.model.Product
 import com.radityaf.depotify_wrz.data.model.User
 import com.radityaf.depotify_wrz.ui.components.*
 import com.radityaf.depotify_wrz.ui.owner.sales.ErrorBanner
@@ -34,7 +34,7 @@ fun VendorProductListScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    var productToDelete by remember { mutableStateOf<ProductEntity?>(null) }
+    var productToDelete by remember { mutableStateOf<Product?>(null) }
 
     LaunchedEffect(user.effectiveVendorId) {
         viewModel.setVendorId(user.effectiveVendorId)
@@ -44,7 +44,7 @@ fun VendorProductListScreen(
         AlertDialog(
             onDismissRequest = { productToDelete = null },
             title = { Text("Hapus Produk", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy) },
-            text = { Text("Apakah Anda yakin ingin menghapus produk '${productToDelete?.name}'?") },
+            text = { Text("Apakah Anda yakin ingin menghapus produk '${productToDelete?.name}' dari server?") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -91,8 +91,8 @@ fun VendorProductListScreen(
                 item {
                     PageHeader(
                         "Vendor",
-                        "Katalog Produk",
-                        "Kelola produk yang Anda sediakan."
+                        "Katalog Produk Server",
+                        "Kelola produk langsung dari server database."
                     )
                 }
 
@@ -129,7 +129,7 @@ fun VendorProductListScreen(
                 }
 
                 if (state.filteredProducts.isEmpty()) {
-                    item { EmptyState("Belum ada produk terdaftar untuk Vendor ini. Klik + untuk membuat produk baru.") }
+                    item { EmptyState("Belum ada produk terdaftar di server untuk Vendor ini. Klik + untuk membuat produk baru.") }
                 } else {
                     items(state.filteredProducts, key = { it.id }) { product ->
                         Box(
@@ -195,13 +195,13 @@ fun VendorProductListScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            "Harga Modal / Beli: ${formatRupiah(product.purchasePrice.toLong())}",
+                                            "Harga Modal / Beli: ${formatRupiah(product.purchase_price.toLong())}",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp,
                                             color = DepotifyColors.GreenDark
                                         )
                                         Text(
-                                            "Harga Jual Depot: ${formatRupiah(product.sellingPrice.toLong())}",
+                                            "Harga Jual Depot: ${formatRupiah(product.selling_price.toLong())}",
                                             fontSize = 12.sp,
                                             color = DepotifyColors.TextSecondary
                                         )
@@ -211,13 +211,13 @@ fun VendorProductListScreen(
                                         modifier = Modifier
                                             .clayInset(
                                                 cornerRadius = 10.dp,
-                                                backgroundColor = if (product.isActive) DepotifyColors.GreenSoft else DepotifyColors.WarningSoft
+                                                backgroundColor = if (product.is_active) DepotifyColors.GreenSoft else DepotifyColors.WarningSoft
                                             )
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
                                         Text(
-                                            if (product.isActive) "Aktif" else "Non-Aktif",
-                                            color = if (product.isActive) DepotifyColors.GreenDark else DepotifyColors.Warning,
+                                            if (product.is_active) "Aktif" else "Non-Aktif",
+                                            color = if (product.is_active) DepotifyColors.GreenDark else DepotifyColors.Warning,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 11.sp
                                         )

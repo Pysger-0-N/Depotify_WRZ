@@ -112,8 +112,11 @@ class PurchaseOrderViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            syncRepository.syncRoomToServer()
             syncRepository.syncServerToRoom()
             fetchServerPurchaseOrders()
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
@@ -260,18 +263,49 @@ class PurchaseOrderViewModel @Inject constructor(
                                 endingBalance = newStock,
                                 referenceType = "purchase_order",
                                 referenceId = targetPo.id,
-                                description = "Penerimaan PO #${targetPo.id}${if (!note.isNullOrBlank()) ": $note" else ""}"
+                                description = "Penerimaan PO #${targetPo.id}${if (!note.isNullOrBlank()) ": $note" else ""}",
+                                isSynced = false
                             )
                         )
                     }
                 }
 
-                // 3. Try updating server status and syncing if online, but catch errors so local success persists
+                // 3. Try updating server status sequentially (confirmed -> shipped -> received), creating goods receipt, and syncing if online
+                var serverError: String? = null
                 try {
-                    if (targetPo.status != "DIKIRIM" && targetPo.status != "DITERIMA") {
-                        purchaseOrderRepository.updatePoStatus(id, "shipped", "Bypass Admin - Diteruskan ke pengiriman")
+                    // Sequential status transition to satisfy server state machine
+                    purchaseOrderRepository.updatePoStatus(id, "confirmed", "Bypass Admin - Konfirmasi Otomatis")
+                    purchaseOrderRepository.updatePoStatus(id, "shipped", "Bypass Admin - Diteruskan ke pengiriman")
+                    val statusResult = purchaseOrderRepository.updatePoStatus(id, "received", note)
+                    if (statusResult.isFailure) {
+                        serverError = statusResult.exceptionOrNull()?.message
                     }
-                    purchaseOrderRepository.updatePoStatus(id, "received", note)
+
+                    // Create Goods Receipt on server so backend handles inventory/stock increment in server database
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                    val dateStr = dateFormat.format(Date())
+                    val receiptRequest = com.radityaf.depotify_wrz.data.model.CreateGoodsReceiptRequest(
+                        purchase_order_id = id,
+                        document_type = "do",
+                        document_number = "DO-BYPASS-${System.currentTimeMillis()}",
+                        received_date = dateStr,
+                        notes = note,
+                        items = targetPo.items.map { item ->
+                            com.radityaf.depotify_wrz.data.model.CreateGoodsReceiptItemRequest(
+                                product_id = item.productId,
+                                qty_diterima = item.qty,
+                                qty_ditolak = 0,
+                                catatan_qc = note
+                            )
+                        }
+                    )
+                    val receiptResult = purchaseOrderRepository.createGoodsReceipt(receiptRequest)
+                    if (receiptResult.isFailure && serverError == null) {
+                        val err = receiptResult.exceptionOrNull()?.message
+                        if (err != null && !err.contains("already", ignoreCase = true)) {
+                            serverError = err
+                        }
+                    }
 
                     if (syncRepository.isConnected()) {
                         targetPo.items.forEach { item ->
@@ -288,17 +322,35 @@ class PurchaseOrderViewModel @Inject constructor(
                         }
                         syncRepository.syncRoomToServer()
                     }
-                } catch (_: Exception) {
-                    // Ignore network/server errors so local store & local stock updates remain intact
+                } catch (e: Exception) {
+                    serverError = e.message
                 }
 
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        successMessage = "Barang PO #${targetPo.id} berhasil diterima & stok produk telah diperbarui!"
-                    )
+                if (serverError != null && !syncRepository.isConnected()) {
+                    // Offline success
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            successMessage = "Barang PO #${targetPo.id} berhasil diterima secara lokal (Mode Offline)!"
+                        )
+                    }
+                    onComplete()
+                } else if (serverError != null) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Barang diterima lokal, tetapi server menolak: $serverError"
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            successMessage = "Barang PO #${targetPo.id} berhasil diterima & stok server & lokal diperbarui!"
+                        )
+                    }
+                    onComplete()
                 }
-                onComplete()
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(

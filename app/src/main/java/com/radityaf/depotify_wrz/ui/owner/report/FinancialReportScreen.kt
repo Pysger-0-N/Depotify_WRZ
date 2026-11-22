@@ -1,5 +1,8 @@
 package com.radityaf.depotify_wrz.ui.owner.report
 
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,11 +20,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.radityaf.depotify_wrz.data.model.Product
 import com.radityaf.depotify_wrz.data.model.PurchaseOrder
 import com.radityaf.depotify_wrz.data.model.SaleTransaction
 import com.radityaf.depotify_wrz.ui.components.*
 import com.radityaf.depotify_wrz.ui.theme.DepotifyColors
+import com.radityaf.depotify_wrz.utils.ExportUtils
 import com.radityaf.depotify_wrz.utils.FormatUtils.toRupiah
+import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,13 +41,19 @@ fun FinancialReportScreen(
     val context = LocalContext.current
     val sales by viewModel.sales.collectAsState()
     val purchaseOrders by viewModel.purchaseOrders.collectAsState()
+    val products by viewModel.products.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
 
     val totalOmset by viewModel.totalOmset.collectAsState()
     val totalExpense by viewModel.totalExpense.collectAsState()
-    val estimatedProfit by viewModel.estimatedProfit.collectAsState()
+    val netProfit by viewModel.netProfit.collectAsState()
+    val netLoss by viewModel.netLoss.collectAsState()
+    val netBalance by viewModel.netBalance.collectAsState()
+
+    val bestSellingProducts by viewModel.bestSellingProducts.collectAsState()
+    val slowMovingProducts by viewModel.slowMovingProducts.collectAsState()
 
     var exportedFilePath by remember { mutableStateOf<String?>(null) }
 
@@ -65,16 +79,19 @@ fun FinancialReportScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                PageHeader("Keuangan", "Laporan Operasional", "Rekapitulasi omset penjualan, pengeluaran pembelian, dan laba kotor.")
+                PageHeader("Keuangan", "Laporan Operasional", "Rekapitulasi omset, pengeluaran PO, laba/rugi, dan performa produk.")
 
-                // Export Excel/CSV Button
+                // Export PDF Button
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp)
                         .clayButton(cornerRadius = 14.dp)
                         .clickable {
-                            val path = exportFinancialReport(context, totalOmset, totalExpense, estimatedProfit, sales, purchaseOrders)
+                            val path = exportFinancialReportPdf(
+                                context, totalOmset, totalExpense, netProfit, netLoss, netBalance,
+                                bestSellingProducts, slowMovingProducts, sales, purchaseOrders
+                            )
                             if (path.isNotBlank()) {
                                 exportedFilePath = path
                             }
@@ -86,61 +103,79 @@ fun FinancialReportScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        Text("Ekspor Laporan (Excel)", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                        Text("Ekspor Laporan (PDF)", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
                     }
                 }
 
-                // Financial Summary KPI Cards
+                // 5 Financial Cards (Bagian 2)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Pemasukan
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
-                            .padding(12.dp)
+                            .padding(10.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Penjualan", fontSize = 11.sp, color = DepotifyColors.TextSecondary)
-                            Text(totalOmset.toRupiah(), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = DepotifyColors.GreenDark)
+                            Text("Pemasukan", fontSize = 10.sp, color = DepotifyColors.TextSecondary)
+                            Text(totalOmset.toRupiah(), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = DepotifyColors.GreenDark)
                         }
                     }
-
+                    // Pengeluaran
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
-                            .padding(12.dp)
+                            .padding(10.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Pengeluaran PO", fontSize = 11.sp, color = DepotifyColors.TextSecondary)
-                            Text(totalExpense.toRupiah(), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = DepotifyColors.Danger)
+                            Text("Pengeluaran", fontSize = 10.sp, color = DepotifyColors.TextSecondary)
+                            Text(totalExpense.toRupiah(), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = DepotifyColors.Danger)
+                        }
+                    }
+                    // Laba Bersih
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
+                            .padding(10.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Laba Bersih", fontSize = 10.sp, color = DepotifyColors.TextSecondary)
+                            Text(netProfit.toRupiah(), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = DepotifyColors.GreenDark)
                         }
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
-                        .padding(16.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // Rugi
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
+                            .padding(10.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Estimasi Laba Kotor", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DepotifyColors.TextSecondary)
-                            Text(estimatedProfit.toRupiah(), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = if (estimatedProfit >= 0) DepotifyColors.GreenDark else DepotifyColors.Danger)
+                            Text("Rugi", fontSize = 10.sp, color = DepotifyColors.TextSecondary)
+                            Text(netLoss.toRupiah(), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = DepotifyColors.Danger)
                         }
-                        Box(
-                            modifier = Modifier
-                                .clayInset(cornerRadius = 10.dp, backgroundColor = DepotifyColors.SurfaceInset)
-                                .padding(8.dp)
-                        ) {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = DepotifyColors.Warning, modifier = Modifier.size(24.dp))
+                    }
+                    // Saldo Bersih
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clayCard(cornerRadius = 16.dp, color = DepotifyColors.Surface)
+                            .padding(10.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Saldo Bersih", fontSize = 10.sp, color = DepotifyColors.TextSecondary)
+                            Text(netBalance.toRupiah(), fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = if (netBalance >= 0) DepotifyColors.Navy else DepotifyColors.Danger)
                         }
                     }
                 }
@@ -154,17 +189,22 @@ fun FinancialReportScreen(
                     Tab(
                         selected = selectedTab == FinancialTab.SUMMARY,
                         onClick = { viewModel.setTab(FinancialTab.SUMMARY) },
-                        text = { Text("Ringkasan", fontWeight = FontWeight.Bold) }
+                        text = { Text("Ringkasan", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
                     )
                     Tab(
                         selected = selectedTab == FinancialTab.SALES,
                         onClick = { viewModel.setTab(FinancialTab.SALES) },
-                        text = { Text("Penjualan", fontWeight = FontWeight.Bold) }
+                        text = { Text("Penjualan", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
                     )
                     Tab(
                         selected = selectedTab == FinancialTab.PURCHASE_ORDERS,
                         onClick = { viewModel.setTab(FinancialTab.PURCHASE_ORDERS) },
-                        text = { Text("Purchase Order", fontWeight = FontWeight.Bold) }
+                        text = { Text("PO", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+                    )
+                    Tab(
+                        selected = selectedTab == FinancialTab.PRODUCTS,
+                        onClick = { viewModel.setTab(FinancialTab.PRODUCTS) },
+                        text = { Text("Performa", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
                     )
                 }
 
@@ -191,12 +231,13 @@ fun FinancialReportScreen(
                                             .padding(16.dp)
                                     ) {
                                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                            Text("Ringkasan Operasional", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy, fontSize = 15.sp)
+                                            Text("Ringkasan Operasional & Keuangan", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy, fontSize = 15.sp)
                                             HorizontalDivider(color = DepotifyColors.Border)
                                             SummaryRow("Total Penjualan", "${sales.size} Transaksi")
                                             SummaryRow("Total Purchase Order", "${purchaseOrders.size} PO")
-                                            SummaryRow("PO Selesai", "${purchaseOrders.count { it.status == "received" || it.status == "completed" }} PO")
-                                            SummaryRow("Status Sistem", "Online & Sinkron")
+                                            SummaryRow("PO Selesai / Diterima", "${purchaseOrders.count { it.status == "received" || it.status == "completed" }} PO")
+                                            SummaryRow("Total Produk Katalog", "${products.size} Produk")
+                                            SummaryRow("Status Laporan", "Sinkron & Real-Time")
                                         }
                                     }
                                 }
@@ -234,6 +275,73 @@ fun FinancialReportScreen(
                                 }
                             }
                         }
+                        FinancialTab.PRODUCTS -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                item {
+                                    Text("Barang Paling Laku (Terlaris)", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy, fontSize = 14.sp)
+                                }
+                                if (bestSellingProducts.isEmpty()) {
+                                    item {
+                                        Text("Belum ada data penjualan produk", fontSize = 12.sp, color = DepotifyColors.TextMuted)
+                                    }
+                                } else {
+                                    items(bestSellingProducts) { item ->
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clayCard(cornerRadius = 14.dp, color = DepotifyColors.Surface)
+                                                .padding(12.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                    Text(item.productName, fontWeight = FontWeight.Bold, color = DepotifyColors.Navy, fontSize = 13.sp)
+                                                    Text("Terjual: ${item.totalQtySold} unit", fontSize = 11.sp, color = DepotifyColors.TextSecondary)
+                                                }
+                                                Text(item.totalRevenue.toRupiah(), fontWeight = FontWeight.ExtraBold, color = DepotifyColors.GreenDark, fontSize = 13.sp)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                item {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("Barang Jarang Dibeli (Slow-Moving)", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy, fontSize = 14.sp)
+                                }
+                                if (slowMovingProducts.isEmpty()) {
+                                    item {
+                                        Text("Semua produk aktif memiliki transaksi penjualan.", fontSize = 12.sp, color = DepotifyColors.TextMuted)
+                                    }
+                                } else {
+                                    items(slowMovingProducts) { prod ->
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clayCard(cornerRadius = 14.dp, color = DepotifyColors.Surface)
+                                                .padding(12.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                    Text(prod.name, fontWeight = FontWeight.Bold, color = DepotifyColors.Navy, fontSize = 13.sp)
+                                                    Text("Stok: ${prod.stock_content} ${prod.unit}", fontSize = 11.sp, color = DepotifyColors.TextSecondary)
+                                                }
+                                                Text("Belum Ada Penjualan", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DepotifyColors.Danger)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -242,10 +350,10 @@ fun FinancialReportScreen(
             if (exportedFilePath != null) {
                 AlertDialog(
                     onDismissRequest = { exportedFilePath = null },
-                    title = { Text("Ekspor Berhasil", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy) },
+                    title = { Text("Ekspor PDF Berhasil", fontWeight = FontWeight.Bold, color = DepotifyColors.Navy) },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("File laporan keuangan berhasil dibuat dan disimpan ke perangkat.", fontSize = 13.sp, color = DepotifyColors.TextSecondary)
+                            Text("File Laporan Keuangan PDF berhasil dibuat dan disimpan ke perangkat.", fontSize = 13.sp, color = DepotifyColors.TextSecondary)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -274,42 +382,127 @@ fun FinancialReportScreen(
     }
 }
 
-private fun exportFinancialReport(
+private fun exportFinancialReportPdf(
     context: android.content.Context,
     totalOmset: Double,
     totalExpense: Double,
-    profit: Double,
+    netProfit: Double,
+    netLoss: Double,
+    netBalance: Double,
+    bestSelling: List<ProductPerformanceItem>,
+    slowMoving: List<Product>,
     sales: List<SaleTransaction>,
     pos: List<PurchaseOrder>
 ): String {
-    val timeStamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
-    val fileName = "Laporan_Keuangan_$timeStamp.csv"
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val fileName = "Laporan_Keuangan_$timeStamp.pdf"
 
-    val csvContent = buildString {
-        appendLine("DEPOTIFY — LAPORAN KEUANGAN")
-        appendLine("Waktu Ekspor,${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
-        appendLine()
-        appendLine("RINGKASAN KEUANGAN")
-        appendLine("Total Omset,${totalOmset}")
-        appendLine("Total Pengeluaran PO,${totalExpense}")
-        appendLine("Estimasi Laba Kotor,$profit")
-        appendLine()
-        appendLine("DAFTAR PENJUALAN")
-        appendLine("Invoice,Pelanggan,Total,Status,Tanggal")
-        sales.forEach { s ->
-            val safeCustomer = s.displayCustomerName.replace(",", " ")
-            appendLine("${s.displayInvoice},$safeCustomer,${s.total_amount},${s.status},${s.created_at ?: "-"}")
-        }
-        appendLine()
-        appendLine("DAFTAR PURCHASE ORDER")
-        appendLine("No PO,Vendor,Total,Status,Tanggal")
-        pos.forEach { p ->
-            val safeVendor = (p.vendor?.name ?: "Supplier").replace(",", " ")
-            appendLine("${p.displayPoNumber},$safeVendor,${p.displayTotal},${p.displayStatus},${p.po_date ?: "-"}")
+    val pdfDocument = PdfDocument()
+    val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 size
+    val page = pdfDocument.startPage(pageInfo)
+    val canvas: Canvas = page.canvas
+    val paint = Paint()
+
+    var yPos = 40f
+    val leftMargin = 40f
+
+    // Title
+    paint.isAntiAlias = true
+    paint.textSize = 18f
+    paint.isFakeBoldText = true
+    paint.color = android.graphics.Color.rgb(15, 23, 42) // Navy
+    canvas.drawText("DEPOTIFY — LAPORAN KEUANGAN & OPERASIONAL", leftMargin, yPos, paint)
+
+    yPos += 20f
+    paint.textSize = 10f
+    paint.isFakeBoldText = false
+    paint.color = android.graphics.Color.rgb(100, 116, 139)
+    canvas.drawText("Waktu Cetak: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}", leftMargin, yPos, paint)
+
+    yPos += 25f
+    // Section 1: Financial Summary (5 Metrics)
+    paint.textSize = 14f
+    paint.isFakeBoldText = true
+    paint.color = android.graphics.Color.rgb(15, 23, 42)
+    canvas.drawText("1. Ringkasan Keuangan Utama", leftMargin, yPos, paint)
+
+    yPos += 18f
+    paint.textSize = 11f
+    paint.isFakeBoldText = false
+    canvas.drawText("• Total Pemasukan: ${totalOmset.toRupiah()}", leftMargin + 10f, yPos, paint)
+    yPos += 16f
+    canvas.drawText("• Total Pengeluaran PO: ${totalExpense.toRupiah()}", leftMargin + 10f, yPos, paint)
+    yPos += 16f
+    canvas.drawText("• Laba Bersih: ${netProfit.toRupiah()}", leftMargin + 10f, yPos, paint)
+    yPos += 16f
+    canvas.drawText("• Rugi: ${netLoss.toRupiah()}", leftMargin + 10f, yPos, paint)
+    yPos += 16f
+    canvas.drawText("• Saldo Bersih: ${netBalance.toRupiah()}", leftMargin + 10f, yPos, paint)
+
+    yPos += 25f
+    // Section 2: Product Performance
+    paint.textSize = 14f
+    paint.isFakeBoldText = true
+    canvas.drawText("2. Analisis Performa Produk", leftMargin, yPos, paint)
+
+    yPos += 18f
+    paint.textSize = 12f
+    paint.isFakeBoldText = true
+    canvas.drawText("Barang Paling Laku (Terlaris):", leftMargin + 10f, yPos, paint)
+    yPos += 16f
+    paint.textSize = 10f
+    paint.isFakeBoldText = false
+    if (bestSelling.isEmpty()) {
+        canvas.drawText("- Belum ada data penjualan produk", leftMargin + 20f, yPos, paint)
+        yPos += 16f
+    } else {
+        bestSelling.take(5).forEach { item ->
+            canvas.drawText("- ${item.productName} (${item.totalQtySold} unit) - ${item.totalRevenue.toRupiah()}", leftMargin + 20f, yPos, paint)
+            yPos += 15f
         }
     }
 
-    return com.radityaf.depotify_wrz.utils.ExportUtils.saveCsvToDownloads(context, fileName, csvContent)
+    yPos += 10f
+    paint.textSize = 12f
+    paint.isFakeBoldText = true
+    canvas.drawText("Barang Jarang Dibeli (Slow-Moving):", leftMargin + 10f, yPos, paint)
+    yPos += 16f
+    paint.textSize = 10f
+    paint.isFakeBoldText = false
+    if (slowMoving.isEmpty()) {
+        canvas.drawText("- Semua produk aktif memiliki transaksi", leftMargin + 20f, yPos, paint)
+        yPos += 16f
+    } else {
+        slowMoving.take(5).forEach { prod ->
+            canvas.drawText("- ${prod.name} (Stok: ${prod.stock_content} ${prod.unit})", leftMargin + 20f, yPos, paint)
+            yPos += 15f
+        }
+    }
+
+    yPos += 25f
+    // Section 3: Recent Transactions & PO summary
+    paint.textSize = 14f
+    paint.isFakeBoldText = true
+    canvas.drawText("3. Statistik Ringkas", leftMargin, yPos, paint)
+    yPos += 18f
+    paint.textSize = 11f
+    paint.isFakeBoldText = false
+    canvas.drawText("• Total Transaksi Selesai: ${sales.size}", leftMargin + 10f, yPos, paint)
+    yPos += 16f
+    canvas.drawText("• Total Purchase Order: ${pos.size}", leftMargin + 10f, yPos, paint)
+
+    pdfDocument.finishPage(page)
+
+    val outputStream = ByteArrayOutputStream()
+    try {
+        pdfDocument.writeTo(outputStream)
+    } catch (e: Exception) {
+        e.printStackTrace()
+    } finally {
+        pdfDocument.close()
+    }
+
+    return ExportUtils.savePdfToDownloads(context, fileName, outputStream.toByteArray())
 }
 
 @Composable
